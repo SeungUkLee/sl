@@ -11,7 +11,6 @@ import qualified Text.Megaparsec.Char.Lexer     as L
 import           Control.Monad.Combinators.Expr
 
 import           Syntax
-import           Text.Megaparsec.Debug          (dbg)
 
 type Parser = Parsec Void Text
 
@@ -33,30 +32,6 @@ parens = between (symbol "(") (symbol ")")
 
 
 pTerm :: Parser Expr
---pTerm = do
---  ts <- some t
---  return (foldl1 App ts)
---  where
---    t = choice
---      [ parens pExpr
---      , pVariable
---      , pInteger
---      , pBool
---      , pIf
---      , pFunc
---      , pLet
---      ]
--- pTerm = makeExprParser t operatorTable
---   where
---     t = choice
---       [ parens pExpr
---       , pVariable
---       , pInteger
---       , pBool
---       , pIf
---       , pFunc
---       , pLet
---       ]
 pTerm = choice
   [ parens pExpr
   , pVariable
@@ -68,7 +43,6 @@ pTerm = choice
   ]
 
 pExpr :: Parser Expr
--- pExpr = makeExprParser pTerm operatorTable
 pExpr = do
   ts <- some expr
   return (foldl1 App ts)
@@ -108,15 +82,10 @@ identifier = (lexeme . try) (p >>= check)
               else return x
 
 pVariable :: Parser Expr
--- pVariable = Var <$> lexeme ((:) <$> letterChar <*> many alphaNumChar <?> "variable")
 pVariable = Var <$> identifier
 
 pInteger :: Parser Expr
 pInteger = Const . Int <$> signedInteger
--- pInteger = Const . Int <$> integer
-
--- integer :: Parser Integer
--- integer = lexeme L.decimal
 
 signedInteger :: Parser Integer
 signedInteger = L.signed sc (lexeme L.decimal)
@@ -151,32 +120,3 @@ pFunc = do
 
 parseExpr :: Text -> IO ()
 parseExpr = parseTest (pExpr <* eof)
-
-
--- run = runParser (pExpr <* eof) ""
-
--- testParse :: Parser a -> Text -> IO ()
--- testParse p = parseTest (p <* eof)
-
--- expr' :: Parser Expr
--- expr' = do
---   es <- some term'
---   return (foldl1 App es)
-
--- term' :: Parser Expr
--- term' = makeExprParser aexp' operatorTable
-
--- aexp' :: Parser Expr
--- aexp' = choice
---   [ parens expr'
---   , pVariable
---   , pInteger
---   , pBool
---   , pIf
---   , pFunc
---   , pLet
---   -- , parens pExpr
---   ]
-
--- parseExpr' :: Text -> IO ()
--- parseExpr' = parseTest (expr' <* eof)
