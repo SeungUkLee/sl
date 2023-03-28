@@ -120,3 +120,5 @@ pFunc = do
 
 parseExpr :: Text -> IO ()
 parseExpr = parseTest (pExpr <* eof)
+
+parseSL = runParser (pExpr <* eof) "sl parser"
