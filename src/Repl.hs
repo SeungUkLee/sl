@@ -6,7 +6,7 @@ import           Control.Monad.Trans      (MonadIO (liftIO))
 import           System.Console.Haskeline (InputT, defaultSettings,
                                            getInputLine, outputStrLn, runInputT)
 
-import           Eval                     (eval)
+import           Eval                     (runEval)
 import           Parser                   (parseSL)
 
 type Repl a = InputT IO a
@@ -24,6 +24,6 @@ repl = do
 process :: String -> IO ()
 process str = do
   res <- case parseSL $ T.pack str of
-    Left _  -> return Nothing
-    Right a -> return $ eval a
+    Left _  -> return $ Left "error"
+    Right a -> runEval a
   print res

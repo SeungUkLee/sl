@@ -1,9 +1,12 @@
-module Eval (eval) where
+module Eval (runEval) where
 
+import           Control.Monad.Except
+import           Control.Monad.Reader
 import           Syntax
 
-import qualified Data.Map as Map
+import qualified Data.Map             as Map
 
+type Eval a = ReaderT Env (ExceptT String IO) a
 
 type Env = Map.Map String Value
 
@@ -20,51 +23,55 @@ instance Show Value where
 type Name = String
 type Closure = (Name, Expr, Env)
 
-getInt :: Value -> Maybe Integer
-getInt (VInt n) = Just n
-getInt _        = Nothing
-
-binop :: Bop -> Value -> Value -> Maybe Value
-binop op v1 v2 = case op of
-  Add -> do
-    a <- getInt v1
-    b <- getInt v2
-    return $ VInt (a + b)
-  Sub -> do
-    a <- getInt v1
-    b <- getInt v2
-    return $ VInt (a - b)
-  Mul -> do
-    a <- getInt v1
-    b <- getInt v2
-    return $ VInt (a * b)
-  Equal -> case (v1, v2) of
-    (VInt n1, VInt n2)   -> return $ VBool (n1 == n2)
-    (VBool b1, VBool b2) -> return $ VBool (b1 == b2)
-    _                    -> Nothing
-
-eval' :: Env -> Expr -> Maybe Value
-eval' env expr = case expr of
+eval :: Expr -> Eval Value
+eval expr = case expr of
   Const (Int n)  ->  return $ VInt n
   Const (Bool b) ->  return $ VBool b
-  Var name       ->  Map.lookup name env
+  Var name       ->  do
+    env <- ask
+    case Map.lookup name env of
+      Nothing -> throwError ("unbound variable: " ++ name)
+      Just value -> return value
   App func arg -> do
-    VClosure (fname, fbody, fenv) <- eval' env func
-    varg <- eval' env arg
+    VClosure (fname, fbody, fenv) <- eval func
+    varg <- eval arg
     let nenv = Map.insert fname varg fenv
-    eval' nenv fbody
-  Abs name body -> return $ VClosure (name, body, env)
+    local (const nenv) (eval fbody)
+  Abs name body -> do
+    env <- ask
+    return $ VClosure (name, body, env)
   Let name evalue body -> do
-    v <- eval' env evalue
+    v <- eval evalue
+    env <- ask
     let nenv = Map.insert name v env
-    eval' nenv body
+    local (const nenv) (eval body)
   If cond th el -> do
-    VBool v <- eval' env cond
-    eval' env (if v then th else el)
+    VBool v <- eval cond
+    eval (if v then th else el)
   Op bop e1 e2 -> do
-    v1 <- eval' env e1
-    v2 <- eval' env e2
-    binop bop v1 v2
+    v1 <- eval e1
+    v2 <- eval e2
+    binOp bop v1 v2
 
-eval :: Expr -> Maybe Value
-eval = eval' Map.empty
+binOp :: Bop -> Value -> Value -> Eval Value
+binOp op v1 v2 = case op of
+  Add -> numOp (+) v1 v2
+  Sub -> numOp (-) v1 v2
+  Mul -> numOp (*) v1 v2
+  Equal -> eqOp v1 v2
+
+numOp :: (Integer -> Integer -> Integer) -> Value -> Value -> Eval Value
+numOp op (VInt v1) (VInt v2) = return $ VInt $ op v1 v2 
+numOp _ _ _ = throwError "error"
+
+eqOp :: Value -> Value -> Eval Value
+eqOp v1 v2 = case (v1, v2) of
+  (VInt a, VInt b) -> return $ VBool $ a == b
+  (VBool a, VBool b) -> return $ VBool $ a == b
+  _ -> throwError "error"
+
+runEval' :: Env -> Eval a -> IO (Either String a)
+runEval' env ev = runExceptT $ runReaderT ev env
+
+runEval :: Expr -> IO (Either String Value)
+runEval e = runEval' Map.empty $ eval e
