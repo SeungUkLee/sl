@@ -29,6 +29,7 @@ library
       Parser
       Repl
       Syntax
+      TypeInfer
   other-modules:
       Paths_sl
   hs-source-dirs:

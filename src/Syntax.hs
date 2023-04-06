@@ -1,4 +1,4 @@
-module Syntax (Expr (..), Const (..), Bop (..)) where
+module Syntax (Expr (..), Const (..), Bop (..), Name) where
 
 data Expr
   = Const Const

@@ -20,7 +20,6 @@ instance Show Value where
   show (VBool b)    = show b
   show (VClosure _) = "<<function>>"
 
-type Name = String
 type Closure = (Name, Expr, Env)
 
 eval :: Expr -> Eval Value
