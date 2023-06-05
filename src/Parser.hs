@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Parser where
-
 import           Data.Text                      (Text)
 import           Data.Void                      (Void)
 import           Text.Megaparsec
@@ -26,10 +25,8 @@ lexeme = L.lexeme sc
 symbol :: Text -> Parser Text
 symbol = L.symbol sc
 
-
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
-
 
 pTerm :: Parser Expr
 pTerm = choice
@@ -97,10 +94,12 @@ pLet :: Parser Expr
 pLet = do
   reserved "let"
   name <- identifier
+  args <- many identifier
   _ <- symbol "="
   evalue <- pExpr
   reserved "in"
-  Let name evalue <$> pExpr
+  let evalue' = if null args then evalue else foldr Abs evalue args
+  Let name evalue' <$> pExpr
 
 pIf :: Parser Expr
 pIf = do
@@ -114,9 +113,10 @@ pIf = do
 pFunc :: Parser Expr
 pFunc = do
   reserved "fun"
-  arg <- identifier
+  args <- many identifier
   _ <- symbol "->"
-  Abs arg <$> pExpr
+  body <- pExpr
+  return (foldr Abs body args)
 
 parseExpr :: Text -> IO ()
 parseExpr = parseTest (pExpr <* eof)
