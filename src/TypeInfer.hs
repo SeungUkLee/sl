@@ -1,34 +1,42 @@
-
 module TypeInfer where
 
 import           Control.Monad.Except
+import           Syntax
 
 import           Control.Monad.State
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
-
-
-import           Syntax
 
 data Type
   = TInt
   | TBool
   | TVar TVar
   | TFun Type Type
-  deriving (Eq, Show, Ord)
+  deriving ( Eq
+           , Show
+           , Ord
+           )
 
 newtype TVar = TV String
-  deriving (Eq, Show, Ord)
+  deriving ( Eq
+           , Show
+           , Ord
+           )
 
 data Scheme = Forall [TVar] Type
-  deriving (Eq, Show, Ord)
+  deriving ( Eq
+           , Show
+           , Ord
+           )
 
-newtype TypeInfer a = TypeInfer { runTI :: ExceptT TypeError (State InferState) a }
-  deriving ( Functor
-           , Applicative
-           , Monad
-           , MonadError TypeError
-           , MonadState InferState )
+newtype TypeInfer a = TypeInfer
+  { runTI :: ExceptT TypeError (State InferState) a
+  } deriving ( Functor
+             , Applicative
+             , Monad
+             , MonadError TypeError
+             , MonadState InferState
+             )
 
 type TypeError = String
 newtype InferState = InferState { count :: Int }
@@ -118,25 +126,24 @@ unify (TFun t1 t2) (TFun t1' t2') = do
 unify _ _ = throwError "unify error"
 
 checkOccurs :: TVar -> Type -> Bool
-checkOccurs x t = case t of
-  TVar name  -> x == name
-  TFun t1 t2 -> checkOccurs x t1 || checkOccurs x t2
-  TInt       -> False
-  TBool      -> False
+checkOccurs x (TVar name)  = x == name
+checkOccurs x (TFun t1 t2) = checkOccurs x t1 || checkOccurs x t2
+checkOccurs _ TInt         = False
+checkOccurs _ TBool        = False
 
 
 mAlgorithm :: TypeEnv -> Expr -> Type -> TypeInfer Subst
 mAlgorithm tyenv expr expected = case expr of
-  Const (Int _) -> unify TInt expected
+  EConst (CInt _) -> unify TInt expected
 
-  Const (Bool _) -> unify TBool expected
+  EConst (CBool _) -> unify TBool expected
 
-  Var name -> do
+  EVar name -> do
     typescheme <- lookupEnv tyenv name
     typ <- instantiation typescheme
     unify typ expected
 
-  Abs name e -> do
+  EAbs name e -> do
     a1 <- newTyVar
     a2 <- newTyVar
     s <- unify (TFun a1 a2) expected
@@ -148,7 +155,7 @@ mAlgorithm tyenv expr expected = case expr of
 
     return $ s' @@ s
 
-  App e1 e2 -> do
+  EApp e1 e2 -> do
     a <- newTyVar
     s <- mAlgorithm tyenv e1 (TFun a expected)
 
@@ -159,7 +166,7 @@ mAlgorithm tyenv expr expected = case expr of
 
     return $ s' @@ s
 
-  Let name e1 e2 -> do
+  ELet name e1 e2 -> do
     a <- newTyVar
     s <- mAlgorithm tyenv e1 a
 
@@ -175,7 +182,7 @@ mAlgorithm tyenv expr expected = case expr of
 
     return $ s' @@ s
 
-  If e1 e2 e3 -> do
+  EIf e1 e2 e3 -> do
     s <- mAlgorithm tyenv e1 TBool
 
     let tyenv' = apply s tyenv
@@ -190,7 +197,7 @@ mAlgorithm tyenv expr expected = case expr of
 
     return $ s'' @@ s' @@ s
 
-  Op bop e1 e2 -> case bop of
+  EOp bop e1 e2 -> case bop of
     Add -> binaryop TInt TInt
     Sub -> binaryop TInt TInt
     Mul -> binaryop TInt TInt

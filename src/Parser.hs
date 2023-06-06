@@ -42,18 +42,18 @@ pTerm = choice
 pExpr :: Parser Expr
 pExpr = do
   ts <- some expr
-  return (foldl1 App ts)
+  return (foldl1 EApp ts)
   where
     expr = makeExprParser pTerm operatorTable
 
 operatorTable :: [[Operator Parser Expr]]
 operatorTable =
   [
-    [ binary "*" (Op Mul)
+    [ binary "*" (EOp Mul)
     ]
-  , [ binary "+" (Op Add)
-    , binary "-" (Op Sub)
-    , binary "=" (Op Equal)
+  , [ binary "+" (EOp Add)
+    , binary "-" (EOp Sub)
+    , binary "=" (EOp Equal)
     ]
   ]
 
@@ -79,16 +79,16 @@ identifier = (lexeme . try) (p >>= check)
               else return x
 
 pVariable :: Parser Expr
-pVariable = Var <$> identifier
+pVariable = EVar <$> identifier
 
 pInteger :: Parser Expr
-pInteger = Const . Int <$> signedInteger
+pInteger = EConst . CInt <$> signedInteger
 
 signedInteger :: Parser Integer
 signedInteger = L.signed sc (lexeme L.decimal)
 
 pBool :: Parser Expr
-pBool = Const <$> (Bool True <$ reserved "true" <|> Bool False <$ reserved "false")
+pBool = EConst <$> (CBool True <$ reserved "true" <|> CBool False <$ reserved "false")
 
 pLet :: Parser Expr
 pLet = do
@@ -98,8 +98,8 @@ pLet = do
   _ <- symbol "="
   evalue <- pExpr
   reserved "in"
-  let evalue' = if null args then evalue else foldr Abs evalue args
-  Let name evalue' <$> pExpr
+  let evalue' = if null args then evalue else foldr EAbs evalue args
+  ELet name evalue' <$> pExpr
 
 pIf :: Parser Expr
 pIf = do
@@ -108,7 +108,7 @@ pIf = do
   reserved "then"
   thn <- pExpr
   reserved "else"
-  If cond thn <$> pExpr
+  EIf cond thn <$> pExpr
 
 pFunc :: Parser Expr
 pFunc = do
@@ -116,7 +116,7 @@ pFunc = do
   args <- many identifier
   _ <- symbol "->"
   body <- pExpr
-  return (foldr Abs body args)
+  return (foldr EAbs body args)
 
 parseExpr :: Text -> IO ()
 parseExpr = parseTest (pExpr <* eof)
