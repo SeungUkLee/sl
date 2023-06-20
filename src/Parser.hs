@@ -98,8 +98,7 @@ pLet = do
   _ <- symbol "="
   evalue <- pExpr
   reserved "in"
-  let evalue' = if null args then evalue else foldr EAbs evalue args
-  ELet name evalue' <$> pExpr
+  ELet name (foldr EAbs evalue args) <$> pExpr
 
 pIf :: Parser Expr
 pIf = do
