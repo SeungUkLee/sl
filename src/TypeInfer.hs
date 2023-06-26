@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module TypeInfer where
 
 import           Control.Monad.Except
