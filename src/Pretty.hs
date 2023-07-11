@@ -5,6 +5,10 @@ import           Prettyprinter
 import           Syntax
 import           TypeInfer
 
+parensIf ::  Bool -> Doc ann  -> Doc ann
+parensIf True  = parens
+parensIf False = id
+
 pprExpr :: Expr -> Doc ann
 pprExpr (EConst (CInt n)) = pretty n
 pprExpr (EConst (CBool b)) = pretty b
@@ -25,7 +29,11 @@ pprType :: Type -> Doc ann
 pprType TInt                        = pretty "int"
 pprType TBool                       = pretty "bool"
 pprType (TVar tvar)                 = pprTVar tvar
-pprType (TFun inputType returnType) = pprType inputType <+> pretty "->" <+> pprType returnType
+pprType (TFun inputType returnType) = parensIf (isArrow inputType) (pprType inputType)
+  <+> pretty "->" <+> pprType returnType
+  where
+    isArrow TFun{} = True
+    isArrow _      = False
 
 pprTVar :: TVar -> Doc ann
 pprTVar (TV name) = pretty name
