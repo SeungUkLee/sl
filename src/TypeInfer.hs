@@ -87,7 +87,6 @@ instance Substitutable Type where
   ftv TBool        = Set.empty
   ftv (TFun t1 t2) = Set.union (ftv t1) (ftv t2)
 
-
 instance Substitutable Scheme where
   apply (Subst s) (Forall vars t) = Forall vars $ apply (Subst $ foldr Map.delete s vars) t
 
@@ -103,14 +102,14 @@ instance Substitutable a => Substitutable [a] where
   ftv = foldr (Set.union . ftv) Set.empty
 
 instantiation :: Scheme -> TypeInfer Type
-instantiation typescheme = do
-  let Forall _ t = apply emptySubst typescheme
-  return t
+instantiation (Forall vars t) = do
+  nvars <- mapM (const newTyVar) vars
+  let s = Map.fromList (zip vars nvars)
+  return $ apply (Subst s) t
 
 generalization :: TypeEnv -> Type -> Scheme
 generalization env t  = Forall as t
   where as = Set.toList $ ftv t `Set.difference` ftv env
-
 
 runTypeInfer :: TypeInfer a -> (Either String a, InferState)
 runTypeInfer t = runState (runExceptT $ runTI t) initTIState
@@ -124,7 +123,7 @@ unify t (TVar name) | not (checkOccurs name t) = return $ makeSubst name t
 unify (TFun t1 t2) (TFun t1' t2') = do
   s <- unify t1 t1'
   s' <- unify (apply s t2) (apply s t2')
-  return $ s @@ s'
+  return $ s' @@ s
 unify _ _ = throwError "unify error"
 
 checkOccurs :: TVar -> Type -> Bool
@@ -132,7 +131,6 @@ checkOccurs x (TVar name)  = x == name
 checkOccurs x (TFun t1 t2) = checkOccurs x t1 || checkOccurs x t2
 checkOccurs _ TInt         = False
 checkOccurs _ TBool        = False
-
 
 mAlgorithm :: TypeEnv -> Expr -> Type -> TypeInfer Subst
 mAlgorithm tyenv expr expected = case expr of
