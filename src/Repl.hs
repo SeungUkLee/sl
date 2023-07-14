@@ -7,7 +7,7 @@ import qualified Data.Text              as T
 import           Control.Monad.State
 import           Data.Bifunctor         (second)
 import           Data.List              (isPrefixOf)
-import           Eval                   (runEval)
+import           Eval                   (evalExpr)
 import           Parser                 (parseSL)
 import           Pretty                 (showType)
 import           System.Console.Repline (Cmd, CompleterStyle (Word0),
@@ -52,7 +52,7 @@ process :: T.Text -> Repl ()
 process code = do
   ast <- hoistError $ parseSL code
   typ <- hoistError $ fst (inferExpr ast)
-  res <- liftIO $ runEval ast
+  res <- liftIO $ evalExpr ast
   val <- hoistError res
   liftIO $ putStrLn $ show val ++ " : " ++ showType typ
   where

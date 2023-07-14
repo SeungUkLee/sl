@@ -1,5 +1,7 @@
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module Eval
-  ( runEval
+  ( evalExpr
   ) where
 
 import           Control.Monad.Except
@@ -8,9 +10,17 @@ import           Syntax
 
 import qualified Data.Map             as Map
 
-type Eval a = ReaderT Env (ExceptT String IO) a
+newtype Eval a = Eval
+  { runEval :: ReaderT TermEnv (ExceptT String IO) a
+  } deriving ( Functor
+             , Applicative
+             , Monad
+             , MonadError String
+             , MonadReader TermEnv
+             , MonadFail
+             )
 
-type Env = Map.Map String Value
+newtype TermEnv = TermEnv (Map.Map String Value)
 
 data Value
   = VInt Integer
@@ -22,29 +32,29 @@ instance Show Value where
   show (VBool b)    = show b
   show (VClosure _) = "<<function>>"
 
-type Closure = (Name, Expr, Env)
+type Closure = (Name, Expr, TermEnv)
 
 eval :: Expr -> Eval Value
 eval (EConst (CInt n)) = return $ VInt n
 eval (EConst (CBool b)) = return $ VBool b
 eval (EVar name) = do
-  env <- ask
+  (TermEnv env) <- ask
   case Map.lookup name env of
     Nothing    -> throwError ("unbound variable: " ++ name)
     Just value -> return value
 eval (EApp func arg) = do
-  VClosure (fname, fbody, fenv) <- eval func
+  VClosure (fname, fbody, TermEnv fenv) <- eval func
   varg <- eval arg
   let nenv = Map.insert fname varg fenv
-  local (const nenv) (eval fbody)
+  local (const (TermEnv nenv)) (eval fbody)
 eval (EAbs name body) = do
   env <- ask
   return $ VClosure (name, body, env)
 eval (ELet name evalue body) = do
   v <- eval evalue
-  env <- ask
+  (TermEnv env) <- ask
   let nenv = Map.insert name v env
-  local (const nenv) (eval body)
+  local (const (TermEnv nenv)) (eval body)
 eval (EIf cond th el) = do
   VBool v <- eval cond
   eval (if v then th else el)
@@ -68,8 +78,8 @@ eqOp (VInt a) (VInt b)   = return $ VBool $ a == b
 eqOp (VBool a) (VBool b) = return $ VBool $ a == b
 eqOp _ _                 = throwError "error"
 
-runEval' :: Env -> Eval a -> IO (Either String a)
-runEval' env ev = runExceptT $ runReaderT ev env
+runEval' :: TermEnv -> Eval a -> IO (Either String a)
+runEval' env ev = runExceptT $ runReaderT (runEval ev) env
 
-runEval :: Expr -> IO (Either String Value)
-runEval e = runEval' Map.empty $ eval e
+evalExpr :: Expr -> IO (Either String Value)
+evalExpr e = runEval' (TermEnv Map.empty) $ eval e
