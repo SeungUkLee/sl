@@ -1,29 +1,76 @@
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module Repl where
 
-import           Data.Text                as T
+import qualified Data.Text              as T
 
-import           Control.Monad.Trans      (MonadIO (liftIO))
-import           System.Console.Haskeline (InputT, defaultSettings,
-                                           getInputLine, outputStrLn, runInputT)
+import           Control.Monad.State
+import           Data.Bifunctor         (second)
+import           Data.List              (isPrefixOf)
+import           Eval                   (runEval)
+import           Parser                 (parseSL)
+import           Pretty                 (showType)
+import           System.Console.Repline (Cmd, CompleterStyle (Word0),
+                                         ExitDecision (Exit), HaskelineT,
+                                         Options,
+                                         ReplOpts (ReplOpts, banner, command, finaliser, initialiser, multilineCommand, options, prefix, tabComplete),
+                                         WordCompleter, abort, evalReplOpts)
+import           TypeInfer              (inferExpr)
 
-import           Eval                     (runEval)
-import           Parser                   (parseSL)
-
-type Repl a = InputT IO a
+newtype Repl a = Repl
+  { runRepl :: HaskelineT IO a
+  } deriving ( Functor
+             , Applicative
+             , Monad
+             , MonadIO
+             )
 
 mainLoop :: IO ()
-mainLoop = runInputT defaultSettings repl
+mainLoop = evalReplOpts $ ReplOpts
+  { banner           = const (pure "sl> ")
+  , command          = runRepl . cmd
+  , options          = map (second (runRepl .)) opts -- ^ map (\(s, repl) -> (s, unRepl . repl)) opts
+  , prefix           = Just ':'
+  , multilineCommand = Nothing
+  , tabComplete      = Word0 completer
+  , initialiser      = runRepl ini
+  , finaliser        = runRepl final
+  }
 
-repl :: Repl ()
-repl = do
-  minput <- getInputLine "sl> "
-  case minput of
-    Nothing    -> outputStrLn "Goodbye!"
-    Just input -> liftIO (process input) >> repl
+final :: Repl ExitDecision
+final = do
+  liftIO $ putStrLn "GoodBye!\n"
+  return Exit
 
-process :: String -> IO ()
-process str = do
-  res <- case parseSL $ T.pack str of
-    Left _  -> return $ Left "error"
-    Right a -> runEval a
-  print res
+ini :: Repl ()
+ini = liftIO $ putStrLn "Welcome!\n"
+
+cmd :: String -> Repl ()
+cmd code = process (T.pack code)
+
+process :: T.Text -> Repl ()
+process code = do
+  ast <- hoistError $ parseSL code
+  typ <- hoistError $ fst (inferExpr ast)
+  res <- liftIO $ runEval ast
+  val <- hoistError res
+  liftIO $ putStrLn $ show val ++ " : " ++ showType typ
+  where
+    hoistError :: Show e => Either e a -> Repl a
+    hoistError (Right v) = return v
+    hoistError (Left err) = do
+      liftIO $ print err
+      Repl abort
+
+opts :: Options Repl
+opts =
+  [ ("help", help)
+  ]
+
+completer :: Monad m => WordCompleter m
+completer n = do
+  let cmds = [":type", ":load"]
+  return $ filter (isPrefixOf n) cmds
+
+help :: Cmd Repl
+help args = liftIO $ print $ "Help: " ++ show args
