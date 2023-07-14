@@ -7,8 +7,10 @@ import           System.FilePath            (replaceExtension, takeBaseName)
 import           Test.Tasty                 (TestTree, defaultMain, testGroup)
 import           Test.Tasty.Golden          (findByExtension, goldenVsString)
 
-import           Eval                       (runEval)
+import           Eval                       (evalExpr)
 import           Parser                     (parseSL)
+import           Pretty                     (showType)
+import           TypeInfer                  (inferExpr)
 
 main :: IO ()
 main = do
@@ -28,8 +30,15 @@ mkGoldenTest path = do
   where
     action = do
       script <- readFile path
-      let p = parseSL $ T.pack script
-      case p of
+      let ast = parseSL $ T.pack script
+      case ast of
         -- TODO
         Left _  -> undefined
-        Right e -> runEval e
+        Right expr ->
+          case fst (inferExpr expr) of
+            Left inferError -> return inferError
+            Right typ -> do
+              res <- evalExpr expr
+              case res of
+                Left err  -> return err
+                Right val -> return $ show val ++ " : " ++ showType typ
