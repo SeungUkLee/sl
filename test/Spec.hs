@@ -40,5 +40,5 @@ mkGoldenTest path = do
             Right typ -> do
               res <- evalExpr expr
               case res of
-                Left err  -> return err
+                Left err  -> return $ show err
                 Right val -> return $ show val ++ " : " ++ showType typ

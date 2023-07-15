@@ -11,28 +11,35 @@ import           Syntax
 import qualified Data.Map             as Map
 
 newtype Eval a = Eval
-  { runEval :: ReaderT TermEnv (ExceptT String IO) a
+  { runEval :: ReaderT TermEnv (ExceptT EvalError IO) a
   } deriving ( Functor
              , Applicative
              , Monad
-             , MonadError String
+             , MonadError EvalError
              , MonadReader TermEnv
              , MonadFail
              )
 
-newtype TermEnv = TermEnv (Map.Map String Value)
+newtype TermEnv = TermEnv (Map.Map Name Value)
+
+data EvalError
+  = TypeMissmatch String
+  | UnboundVariable String
 
 data Value
   = VInt Integer
   | VBool Bool
   | VClosure Closure
 
+type Closure = (Name, Expr, TermEnv)
 instance Show Value where
   show (VInt n)     = show n
   show (VBool b)    = show b
   show (VClosure _) = "<<function>>"
 
-type Closure = (Name, Expr, TermEnv)
+instance Show EvalError where
+  show (TypeMissmatch txt)    = "[Error] type missmatch : " ++ txt
+  show (UnboundVariable name) = "[Error] unbound variable : " ++ show name
 
 eval :: Expr -> Eval Value
 eval (EConst (CInt n)) = return $ VInt n
@@ -40,7 +47,7 @@ eval (EConst (CBool b)) = return $ VBool b
 eval (EVar name) = do
   (TermEnv env) <- ask
   case Map.lookup name env of
-    Nothing    -> throwError ("unbound variable: " ++ name)
+    Nothing    -> throwError $ UnboundVariable name
     Just value -> return value
 eval (EApp func arg) = do
   VClosure (fname, fbody, TermEnv fenv) <- eval func
@@ -71,15 +78,15 @@ binOp Equal v1 v2 = eqOp v1 v2
 
 numOp :: (Integer -> Integer -> Integer) -> Value -> Value -> Eval Value
 numOp op (VInt v1) (VInt v2) = return $ VInt $ op v1 v2
-numOp _ _ _                  = throwError "error"
+numOp _ _ _                  = throwError $ TypeMissmatch "arithmetic operations expected number"
 
 eqOp :: Value -> Value -> Eval Value
 eqOp (VInt a) (VInt b)   = return $ VBool $ a == b
 eqOp (VBool a) (VBool b) = return $ VBool $ a == b
-eqOp _ _                 = throwError "error"
+eqOp _ _                 = throwError $ TypeMissmatch "equal operaions expected number or boolean"
 
-runEval' :: TermEnv -> Eval a -> IO (Either String a)
+runEval' :: TermEnv -> Eval a -> IO (Either EvalError a)
 runEval' env ev = runExceptT $ runReaderT (runEval ev) env
 
-evalExpr :: Expr -> IO (Either String Value)
+evalExpr :: Expr -> IO (Either EvalError Value)
 evalExpr e = runEval' (TermEnv Map.empty) $ eval e
