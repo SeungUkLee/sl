@@ -3,6 +3,7 @@
 module TypeInfer where
 
 import           Control.Monad.Except
+import           Control.Monad.Reader
 import           Syntax
 
 import           Control.Monad.State
@@ -32,12 +33,13 @@ data Scheme = Forall [TVar] Type
            )
 
 newtype TypeInfer a = TypeInfer
-  { runTI :: ExceptT TypeError (State InferState) a
+  { runTI :: ReaderT TypeEnv (ExceptT TypeError (State InferState)) a
   } deriving ( Functor
              , Applicative
              , Monad
              , MonadError TypeError
              , MonadState InferState
+             , MonadReader TypeEnv
              )
 
 data TypeError
@@ -49,9 +51,9 @@ newtype InferState = InferState { count :: Int }
 
 newtype TypeEnv = TypeEnv (Map.Map Name Scheme)
 
--- TODO: ReaderT
-lookupEnv :: TypeEnv -> Name -> TypeInfer Scheme
-lookupEnv (TypeEnv env) name = do
+lookupEnv :: Name -> TypeInfer Scheme
+lookupEnv name = do
+  TypeEnv env <- ask
   case Map.lookup name env of
     Nothing -> throwError $ UnboundVar name
     Just s  -> return s
@@ -115,7 +117,7 @@ generalization env t  = Forall as t
   where as = Set.toList $ ftv t `Set.difference` ftv env
 
 runTypeInfer :: TypeInfer a -> (Either TypeError a, InferState)
-runTypeInfer t = runState (runExceptT $ runTI t) initTIState
+runTypeInfer t = runState (runExceptT $ runReaderT (runTI t) emptyEnv) initTIState
   where initTIState = InferState { count = 0 }
 
 unify :: Type -> Type -> TypeInfer Subst
@@ -135,18 +137,19 @@ checkOccurs x (TFun t1 t2) = checkOccurs x t1 || checkOccurs x t2
 checkOccurs _ TInt         = False
 checkOccurs _ TBool        = False
 
-mAlgorithm :: TypeEnv -> Expr -> Type -> TypeInfer Subst
-mAlgorithm tyenv expr expected = case expr of
+mAlgorithm :: Expr -> Type -> TypeInfer Subst
+mAlgorithm expr expected = case expr of
   EConst (CInt _) -> unify TInt expected
 
   EConst (CBool _) -> unify TBool expected
 
   EVar name -> do
-    typescheme <- lookupEnv tyenv name
+    typescheme <- lookupEnv name
     typ <- instantiation typescheme
     unify typ expected
 
   EAbs name e -> do
+    tyenv <- ask
     a1 <- newTyVar
     a2 <- newTyVar
     s <- unify (TFun a1 a2) expected
@@ -154,24 +157,26 @@ mAlgorithm tyenv expr expected = case expr of
     let tyenv' = extendEnv (apply s tyenv) (name, Forall [] $ apply s a1)
         a3 = apply s a2
 
-    s' <- mAlgorithm tyenv' e a3
+    s' <- local (const tyenv') (mAlgorithm e a3)
 
     return $ s' @@ s
 
   EApp e1 e2 -> do
     a <- newTyVar
-    s <- mAlgorithm tyenv e1 (TFun a expected)
+    s <- mAlgorithm e1 (TFun a expected)
+    tyenv <- ask
 
     let tyenv' = apply s tyenv
         a2 = apply s a
 
-    s' <- mAlgorithm tyenv' e2 a2
+    s' <- local (const tyenv') (mAlgorithm e2 a2)
 
     return $ s' @@ s
 
   ELet name e1 e2 -> do
+    tyenv <- ask
     a <- newTyVar
-    s <- mAlgorithm tyenv e1 a
+    s <- mAlgorithm e1 a
 
     let tyenv' = apply s tyenv
         expected' = apply s expected
@@ -181,22 +186,23 @@ mAlgorithm tyenv expr expected = case expr of
         tyenv'' = extendEnv tyenv' (name, typescheme)
         expected'' = apply s expected'
 
-    s' <- mAlgorithm tyenv'' e2 expected''
+    s' <- local (const tyenv'') (mAlgorithm e2 expected'')
 
     return $ s' @@ s
 
   EIf e1 e2 e3 -> do
-    s <- mAlgorithm tyenv e1 TBool
+    tyenv <- ask
+    s <- mAlgorithm e1 TBool
 
     let tyenv' = apply s tyenv
         expected' = apply s expected
 
-    s' <- mAlgorithm tyenv' e2 expected'
+    s' <- local (const tyenv') (mAlgorithm e2 expected')
 
     let tyenv'' = apply s tyenv'
         expected'' = apply s expected'
 
-    s'' <- mAlgorithm tyenv'' e3 expected''
+    s'' <- local (const tyenv'') (mAlgorithm e3 expected'')
 
     return $ s'' @@ s' @@ s
 
@@ -209,17 +215,18 @@ mAlgorithm tyenv expr expected = case expr of
       binaryop a TBool
     where
       binaryop op r = do
+        tyenv <- ask
         s <- unify r expected
 
         let tyenv' = apply s tyenv
             op' = apply s op
 
-        s' <- mAlgorithm tyenv' e1 op'
+        s' <- local (const tyenv') (mAlgorithm e1 op')
 
         let tyenv'' = apply s' tyenv'
             op'' = apply s' op'
 
-        s'' <- mAlgorithm tyenv'' e2 op''
+        s'' <- local (const tyenv'') (mAlgorithm e2 op'')
 
         return $ s'' @@ s' @@ s
 
@@ -237,5 +244,5 @@ inferExpr expr = runTypeInfer infer
   where
     infer = do
       a <- newTyVar
-      subst <- mAlgorithm emptyEnv expr a
+      subst <- mAlgorithm expr a
       return $ apply subst a
