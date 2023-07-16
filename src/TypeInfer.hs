@@ -40,7 +40,10 @@ newtype TypeInfer a = TypeInfer
              , MonadState InferState
              )
 
-type TypeError = String
+data TypeError
+  = UnificationError Type Type
+  | UnboundVar String
+
 newtype InferState = InferState { count :: Int }
   deriving Show
 
@@ -48,10 +51,10 @@ newtype TypeEnv = TypeEnv (Map.Map Name Scheme)
 
 -- TODO: ReaderT
 lookupEnv :: TypeEnv -> Name -> TypeInfer Scheme
-lookupEnv (TypeEnv env) x = do
-  case Map.lookup x env of
-    Nothing ->  throwError "Undefined variable"
-    Just s  ->  return s
+lookupEnv (TypeEnv env) name = do
+  case Map.lookup name env of
+    Nothing -> throwError $ UnboundVar name
+    Just s  -> return s
 
 extendEnv :: TypeEnv -> (Name, Scheme) -> TypeEnv
 extendEnv (TypeEnv env) (x, s) = TypeEnv $ Map.insert x s env
@@ -111,7 +114,7 @@ generalization :: TypeEnv -> Type -> Scheme
 generalization env t  = Forall as t
   where as = Set.toList $ ftv t `Set.difference` ftv env
 
-runTypeInfer :: TypeInfer a -> (Either String a, InferState)
+runTypeInfer :: TypeInfer a -> (Either TypeError a, InferState)
 runTypeInfer t = runState (runExceptT $ runTI t) initTIState
   where initTIState = InferState { count = 0 }
 
@@ -124,7 +127,7 @@ unify (TFun t1 t2) (TFun t1' t2') = do
   s <- unify t1 t1'
   s' <- unify (apply s t2) (apply s t2')
   return $ s' @@ s
-unify _ _ = throwError "unify error"
+unify t1 t2 = throwError $ UnificationError t1 t2
 
 checkOccurs :: TVar -> Type -> Bool
 checkOccurs x (TVar name)  = x == name
@@ -229,7 +232,7 @@ newTyVar = do
 letters :: [String]
 letters = [1..] >>= flip replicateM ['a'..'z']
 
-inferExpr :: Expr -> (Either String Type, InferState)
+inferExpr :: Expr -> (Either TypeError Type, InferState)
 inferExpr expr = runTypeInfer infer
   where
     infer = do

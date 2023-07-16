@@ -59,3 +59,8 @@ showScheme = show . pprScheme
 
 showTypeSig :: (String, Scheme) -> String
 showTypeSig (name, scheme) = name ++ " : " ++ showScheme scheme
+
+-- TODO: Oprhan instance warning
+instance Show TypeError where
+  show (UnboundVar name) = "[Type error] unbound variable : " ++ name
+  show (UnificationError t1 t2) = "[Type error] unification error : " ++ showType t1 ++ showType t2
