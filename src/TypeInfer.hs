@@ -239,8 +239,8 @@ newTyVar = do
 letters :: [String]
 letters = [1..] >>= flip replicateM ['a'..'z']
 
-inferExpr :: Expr -> (Either TypeError Type, InferState)
-inferExpr expr = runTypeInfer infer
+inferExpr :: Expr -> Either TypeError Type
+inferExpr expr = fst $ runTypeInfer infer
   where
     infer = do
       a <- newTyVar

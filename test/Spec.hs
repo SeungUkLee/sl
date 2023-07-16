@@ -35,7 +35,7 @@ mkGoldenTest path = do
         -- TODO
         Left _  -> undefined
         Right expr ->
-          case fst (inferExpr expr) of
+          case inferExpr expr of
             Left inferError -> return $ show inferError
             Right typ -> do
               res <- evalExpr expr

@@ -51,7 +51,7 @@ cmd code = process (T.pack code)
 process :: T.Text -> Repl ()
 process code = do
   ast <- hoistError $ parseSL code
-  typ <- hoistError $ fst (inferExpr ast)
+  typ <- hoistError $ inferExpr ast
   res <- liftIO $ evalExpr ast
   val <- hoistError res
   liftIO $ putStrLn $ show val ++ " : " ++ showType typ
