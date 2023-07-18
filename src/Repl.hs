@@ -7,6 +7,7 @@ import qualified Data.Text              as T
 import           Control.Monad.State
 import           Data.Bifunctor         (second)
 import           Data.List              (isPrefixOf)
+import qualified Data.Text.IO           as TIO
 import           Eval                   (evalExpr)
 import           Parser                 (parseSL)
 import           Pretty                 (showType)
@@ -15,6 +16,7 @@ import           System.Console.Repline (Cmd, CompleterStyle (Word0),
                                          Options,
                                          ReplOpts (ReplOpts, banner, command, finaliser, initialiser, multilineCommand, options, prefix, tabComplete),
                                          WordCompleter, abort, evalReplOpts)
+import           System.Exit            (exitSuccess)
 import           TypeInfer              (inferExpr)
 
 newtype Repl a = Repl
@@ -55,22 +57,35 @@ process code = do
   res <- liftIO $ evalExpr ast
   val <- hoistError res
   liftIO $ putStrLn $ show val ++ " : " ++ showType typ
-  where
-    hoistError :: Show e => Either e a -> Repl a
-    hoistError (Right v) = return v
-    hoistError (Left err) = do
-      liftIO $ print err
-      Repl abort
+
+hoistError :: Show e => Either e a -> Repl a
+hoistError (Right v) = return v
+hoistError (Left err) = do
+  liftIO $ print err
+  Repl abort
 
 opts :: Options Repl
 opts =
-  [ ("help", help)
+  [ ("load", load)
+  , ("type", typeof)
+  , ("quit", quit)
   ]
 
 completer :: Monad m => WordCompleter m
 completer n = do
-  let cmds = [":type", ":load"]
+  let cmds = [":type", ":load", ":quit"]
   return $ filter (isPrefixOf n) cmds
 
-help :: Cmd Repl
-help args = liftIO $ print $ "Help: " ++ show args
+typeof :: Cmd Repl
+typeof code = do
+  ast <- hoistError $ parseSL (T.pack code)
+  typ <- hoistError $ inferExpr ast
+  liftIO $ putStrLn $ show code ++ " : " ++ showType typ
+
+load :: Cmd Repl
+load file = do
+  code <- liftIO $ TIO.readFile file
+  process code
+
+quit :: Cmd Repl
+quit _ = liftIO exitSuccess
