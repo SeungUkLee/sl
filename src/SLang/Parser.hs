@@ -4,16 +4,17 @@ module SLang.Parser
   ( parseSL
   ) where
 
-import           Text.Megaparsec                (MonadParsec (eof), choice,
+import           Text.Megaparsec                (MonadParsec (eof, try), choice,
                                                  many, runParser, some, (<|>))
 
 import           Control.Monad.Combinators.Expr (makeExprParser)
 
-import           SLang.Eval.Syntax              (Const (..), Expr (..))
+import           SLang.Eval.Syntax              (Const (..), Expr (..),
+                                                 LetBind (..))
 import           SLang.Parser.Common            (Parser)
 import           SLang.Parser.Lexer             (identifier, operatorTable,
-                                                 parens, reserved,
-                                                 signedInteger, symbol, sc)
+                                                 parens, reserved, sc,
+                                                 signedInteger, symbol)
 
 pTerm :: Parser Expr
 pTerm = choice
@@ -23,6 +24,7 @@ pTerm = choice
   , pBool
   , pIf
   , pFunc
+  , try pLetRec
   , pLet
   ]
 
@@ -50,7 +52,27 @@ pLet = do
   _ <- symbol "="
   evalue <- pExpr
   reserved "in"
-  ELet name (foldr EAbs evalue args) <$> pExpr
+  ELet (LBVal name (foldr EAbs evalue args)) <$> pExpr
+
+pLetRec :: Parser Expr
+pLetRec = do
+  reserved "let"
+  reserved "rec"
+  fNname <- identifier
+  args <- many identifier
+  _ <- symbol "="
+  evalue <- pExpr
+  reserved "in"
+  case pm args evalue of
+    ("", args', _) -> ELet (LBVal fNname (foldr EAbs evalue args')) <$> pExpr
+    (argName, args', evalue') -> ELet (LBRec fNname argName (foldr EAbs evalue' args')) <$> pExpr
+  where
+    -- | TODO: rename ...
+    pm :: [String] -> Expr -> (String, [String], Expr)
+    pm li e = case (li, e) of
+      ([], EAbs name e') -> (name, [], e')
+      ([], _)            -> ("", [], e)
+      (x:xs, _)          -> (x, xs, e)
 
 pIf :: Parser Expr
 pIf = do
