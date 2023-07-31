@@ -13,7 +13,7 @@ import           SLang.Eval.Syntax              (Const (..), Expr (..))
 import           SLang.Parser.Common            (Parser)
 import           SLang.Parser.Lexer             (identifier, operatorTable,
                                                  parens, reserved,
-                                                 signedInteger, symbol)
+                                                 signedInteger, symbol, sc)
 
 pTerm :: Parser Expr
 pTerm = choice
@@ -69,4 +69,4 @@ pFunc = do
   body <- pExpr
   return (foldr EAbs body args)
 
-parseSL = runParser (pExpr <* eof) "sl parser"
+parseSL = runParser (sc *> pExpr <* eof) "sl parser"

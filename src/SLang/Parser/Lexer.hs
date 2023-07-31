@@ -25,8 +25,8 @@ import           SLang.Parser.Common            (Parser)
 sc :: Parser ()
 sc = L.space
   space1
-  (L.skipLineComment "//")
-  (L.skipBlockComment "/*" "*/")
+  (L.skipLineComment "(* *)")
+  (L.skipBlockComment "(*" "*)")
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
@@ -58,7 +58,7 @@ operatorTable =
     ]
   , [ binary "+" (EOp Add)
     , binary "-" (EOp Sub)
-    , binary "=" (EOp Equal)
+    , binary "==" (EOp Equal)
     ]
   ]
 
