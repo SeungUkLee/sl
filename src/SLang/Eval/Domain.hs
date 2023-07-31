@@ -2,6 +2,7 @@
 
 module SLang.Eval.Domain
   ( Value (..)
+  , FuncExpr (..)
   , TermEnv
   , lookup
   , extend
@@ -21,7 +22,10 @@ data Value
   | VBool Bool
   | VClosure Closure
 
-type Closure = (Name, Expr, TermEnv)
+type Closure = (FuncExpr, TermEnv)
+data FuncExpr
+  = RecFun (Name, Name, Expr)
+  | Fun (Name, Expr)
 
 newtype TermEnv = TermEnv (Map.Map Name Value)
   deriving Show

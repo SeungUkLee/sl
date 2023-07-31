@@ -9,9 +9,10 @@ import           Control.Monad.Except (ExceptT, MonadError (throwError),
 import           Control.Monad.Reader (MonadReader (ask, local), ReaderT (..))
 
 import qualified SLang.Eval.Domain    as TermEnv
-import           SLang.Eval.Domain    (TermEnv, Value (..))
+import           SLang.Eval.Domain    (FuncExpr (..), TermEnv, Value (..))
 import           SLang.Eval.Error     (EvalError (..))
-import           SLang.Eval.Syntax    (Bop (..), Const (..), Expr (..))
+import           SLang.Eval.Syntax    (Bop (..), Const (..), Expr (..),
+                                       LetBind (..))
 
 
 newtype Eval a = Eval
@@ -28,20 +29,34 @@ eval :: Expr -> Eval Value
 eval (EConst (CInt n)) = return $ VInt n
 eval (EConst (CBool b)) = return $ VBool b
 eval (EVar name) = TermEnv.lookup name
+
 eval (EApp func arg) = do
-  VClosure (fname, fbody, fenv) <- eval func
+  VClosure (funcExpr, fenv) <- eval func
   varg <- eval arg
-  let nenv = TermEnv.extend fenv (fname, varg)
-  local (const nenv) (eval fbody)
+  case funcExpr of
+    Fun (fname, fbody) -> do
+      let nenv = TermEnv.extend fenv (fname, varg)
+      local (const nenv) (eval fbody)
+
+    RecFun (fname, argName, fbody) -> do
+      let nenv = TermEnv.extend fenv (argName, varg)
+      let nenv' = TermEnv.extend nenv (fname, VClosure (funcExpr, fenv))
+      local (const nenv') (eval fbody)
 
 eval (EAbs name body) = do
   env <- ask
-  return $ VClosure (name, body, env)
+  return $ VClosure (Fun (name, body), env)
 
-eval (ELet name evalue body) = do
+eval (ELet (LBVal name evalue) body) = do
   v <- eval evalue
   env <- ask
   let nenv = TermEnv.extend env (name, v)
+  local (const nenv) (eval body)
+
+eval (ELet (LBRec fNname argName evalue) body) = do
+  env <- ask
+  let closure = VClosure (RecFun (fNname, argName, evalue), env)
+  let nenv = TermEnv.extend env (fNname, closure)
   local (const nenv) (eval body)
 
 eval (EIf cond th el) = do
