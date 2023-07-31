@@ -7,10 +7,7 @@ import           System.FilePath            (replaceExtension, takeBaseName)
 import           Test.Tasty                 (TestTree, defaultMain, testGroup)
 import           Test.Tasty.Golden          (findByExtension, goldenVsString)
 
-import           Eval                       (evalExpr)
-import           Parser                     (parseSL)
-import           Pretty                     (showType)
-import           TypeInfer                  (inferExpr)
+import           SLang                      (evalExpr, inferExpr, parseSL)
 
 main :: IO ()
 main = do
@@ -40,5 +37,5 @@ mkGoldenTest path = do
             Right typ -> do
               res <- evalExpr expr
               case res of
-                Left evalError  -> return $ show evalError
-                Right val -> return $ show val ++ " : " ++ showType typ
+                Left evalError -> return $ show evalError
+                Right val      -> return $ show val ++ " : " ++ show typ

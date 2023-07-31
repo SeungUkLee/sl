@@ -1,14 +1,18 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
-module Eval
+module SLang.Eval
   ( evalExpr
   ) where
 
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Syntax
+import           Control.Monad.Except (ExceptT, MonadError (throwError),
+                                       runExceptT)
+import           Control.Monad.Reader (MonadReader (ask, local), ReaderT (..))
 
-import qualified Data.Map             as Map
+import qualified SLang.Eval.Domain    as TermEnv
+import           SLang.Eval.Domain    (TermEnv, Value (..))
+import           SLang.Eval.Error     (EvalError (..))
+import           SLang.Eval.Syntax    (Bop (..), Const (..), Expr (..))
+
 
 newtype Eval a = Eval
   { runEval :: ReaderT TermEnv (ExceptT EvalError IO) a
@@ -20,51 +24,30 @@ newtype Eval a = Eval
              , MonadFail
              )
 
-newtype TermEnv = TermEnv (Map.Map Name Value)
-
-data EvalError
-  = TypeMissmatch String
-  | UnboundVariable String
-
-data Value
-  = VInt Integer
-  | VBool Bool
-  | VClosure Closure
-
-type Closure = (Name, Expr, TermEnv)
-instance Show Value where
-  show (VInt n)     = show n
-  show (VBool b)    = show b
-  show (VClosure _) = "<<function>>"
-
-instance Show EvalError where
-  show (TypeMissmatch txt)    = "[Error] type missmatch : " ++ txt
-  show (UnboundVariable name) = "[Error] unbound variable : " ++ show name
-
 eval :: Expr -> Eval Value
 eval (EConst (CInt n)) = return $ VInt n
 eval (EConst (CBool b)) = return $ VBool b
-eval (EVar name) = do
-  (TermEnv env) <- ask
-  case Map.lookup name env of
-    Nothing    -> throwError $ UnboundVariable name
-    Just value -> return value
+eval (EVar name) = TermEnv.lookup name
 eval (EApp func arg) = do
-  VClosure (fname, fbody, TermEnv fenv) <- eval func
+  VClosure (fname, fbody, fenv) <- eval func
   varg <- eval arg
-  let nenv = Map.insert fname varg fenv
-  local (const (TermEnv nenv)) (eval fbody)
+  let nenv = TermEnv.extend fenv (fname, varg)
+  local (const nenv) (eval fbody)
+
 eval (EAbs name body) = do
   env <- ask
   return $ VClosure (name, body, env)
+
 eval (ELet name evalue body) = do
   v <- eval evalue
-  (TermEnv env) <- ask
-  let nenv = Map.insert name v env
-  local (const (TermEnv nenv)) (eval body)
+  env <- ask
+  let nenv = TermEnv.extend env (name, v)
+  local (const nenv) (eval body)
+
 eval (EIf cond th el) = do
   VBool v <- eval cond
   eval (if v then th else el)
+
 eval (EOp bop e1 e2) = do
   v1 <- eval e1
   v2 <- eval e2
@@ -89,4 +72,4 @@ runEval' :: TermEnv -> Eval a -> IO (Either EvalError a)
 runEval' env ev = runExceptT $ runReaderT (runEval ev) env
 
 evalExpr :: Expr -> IO (Either EvalError Value)
-evalExpr e = runEval' (TermEnv Map.empty) $ eval e
+evalExpr e = runEval' TermEnv.empty $ eval e

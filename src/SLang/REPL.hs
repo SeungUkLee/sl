@@ -1,23 +1,25 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
-module Repl where
+module SLang.REPL
+  ( mainLoop
+  ) where
 
 import qualified Data.Text              as T
 
-import           Control.Monad.State
+import           Control.Monad.State    (MonadIO (..))
 import           Data.Bifunctor         (second)
 import           Data.List              (isPrefixOf)
 import qualified Data.Text.IO           as TIO
-import           Eval                   (evalExpr)
-import           Parser                 (parseSL)
-import           Pretty                 (showType)
 import           System.Console.Repline (Cmd, CompleterStyle (Word0),
                                          ExitDecision (Exit), HaskelineT,
                                          Options,
                                          ReplOpts (ReplOpts, banner, command, finaliser, initialiser, multilineCommand, options, prefix, tabComplete),
                                          WordCompleter, abort, evalReplOpts)
 import           System.Exit            (exitSuccess)
-import           TypeInfer              (inferExpr)
+
+import           SLang.Eval             (evalExpr)
+import           SLang.Parser           (parseSL)
+import           SLang.TypeInfer        (inferExpr)
 
 newtype Repl a = Repl
   { runRepl :: HaskelineT IO a
@@ -56,7 +58,7 @@ process code = do
   typ <- hoistError $ inferExpr ast
   res <- liftIO $ evalExpr ast
   val <- hoistError res
-  liftIO $ putStrLn $ show val ++ " : " ++ showType typ
+  liftIO $ putStrLn $ show val ++ " : " ++ show typ
 
 hoistError :: Show e => Either e a -> Repl a
 hoistError (Right v) = return v
@@ -80,7 +82,7 @@ typeof :: Cmd Repl
 typeof code = do
   ast <- hoistError $ parseSL (T.pack code)
   typ <- hoistError $ inferExpr ast
-  liftIO $ putStrLn $ show code ++ " : " ++ showType typ
+  liftIO $ putStrLn $ show code ++ " : " ++ show typ
 
 load :: Cmd Repl
 load file = do

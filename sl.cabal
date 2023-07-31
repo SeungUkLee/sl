@@ -25,12 +25,23 @@ source-repository head
 
 library
   exposed-modules:
-      Eval
-      Parser
-      Pretty
-      Repl
-      Syntax
-      TypeInfer
+      SLang
+      SLang.Eval
+      SLang.Eval.Domain
+      SLang.Eval.Error
+      SLang.Eval.Syntax
+      SLang.Parser
+      SLang.Parser.Common
+      SLang.Parser.Lexer
+      SLang.Pretty
+      SLang.REPL
+      SLang.TypeInfer
+      SLang.TypeInfer.Algorithm.M
+      SLang.TypeInfer.Error
+      SLang.TypeInfer.State
+      SLang.TypeInfer.Substitution
+      SLang.TypeInfer.Type
+      SLang.TypeInfer.TypeEnv
   other-modules:
       Paths_sl
   hs-source-dirs:

@@ -1,6 +1,6 @@
 module Main (main) where
 
-import           Repl (mainLoop)
+import           SLang (mainLoop)
 
 main :: IO ()
 main = mainLoop
