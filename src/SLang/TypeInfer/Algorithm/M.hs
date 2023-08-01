@@ -151,8 +151,8 @@ mAlgorithm expr expected = case expr of
 
     s' <- local (const tyenv') (mAlgorithm e2 expected')
 
-    let tyenv'' = apply s tyenv'
-        expected'' = apply s expected'
+    let tyenv'' = apply s' tyenv'
+        expected'' = apply s' expected'
 
     s'' <- local (const tyenv'') (mAlgorithm e3 expected'')
 
