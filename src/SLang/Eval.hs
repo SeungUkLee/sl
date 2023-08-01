@@ -14,7 +14,6 @@ import           SLang.Eval.Error     (EvalError (..))
 import           SLang.Eval.Syntax    (Bop (..), Const (..), Expr (..),
                                        LetBind (..))
 
-
 newtype Eval a = Eval
   { runEval :: ReaderT TermEnv (ExceptT EvalError IO) a
   } deriving ( Functor

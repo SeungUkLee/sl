@@ -1,4 +1,4 @@
-module SLang.TypeInfer.Type 
+module SLang.TypeInfer.Type
   ( Type (..)
   , Scheme (..)
   , TVar (..)
