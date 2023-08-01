@@ -11,7 +11,8 @@ import           Control.Monad.Reader         (MonadReader (ask, local))
 import           Control.Monad.State          (MonadState (get, put))
 import qualified Data.Set                     as Set
 
-import           SLang.Eval.Syntax            (Bop (..), Const (..), Expr (..))
+import           SLang.Eval.Syntax            (Bop (..), Const (..), Expr (..),
+                                               LetBind (..))
 import           SLang.TypeInfer.Error        (TypeError (UnificationError))
 import           SLang.TypeInfer.State        (InferState (..))
 import qualified SLang.TypeInfer.Substitution as Subst
@@ -40,8 +41,7 @@ unify
   => Type
   -> Type
   -> m Subst
-unify TInt TInt = return Subst.empty
-unify TBool TBool = return Subst.empty
+unify a b | a == b = return Subst.empty
 unify (TVar name) t | not (checkOccurs name t) = return $ Subst.make name t
 unify t (TVar name) | not (checkOccurs name t) = return $ Subst.make name t
 unify (TFun t1 t2) (TFun t1' t2') = do
@@ -96,9 +96,9 @@ mAlgorithm expr expected = case expr of
     return $ s' @@ s
 
   EApp e1 e2 -> do
+    tyenv <- ask
     a <- newTyVar
     s <- mAlgorithm e1 (TFun a expected)
-    tyenv <- ask
 
     let tyenv' = apply s tyenv
         a2 = apply s a
@@ -107,10 +107,10 @@ mAlgorithm expr expected = case expr of
 
     return $ s' @@ s
 
-  ELet name e1 e2 -> do
+  ELet (LBVal name evalue) ebody -> do
     tyenv <- ask
     a <- newTyVar
-    s <- mAlgorithm e1 a
+    s <- mAlgorithm evalue a
 
     let tyenv' = apply s tyenv
         expected' = apply s expected
@@ -120,7 +120,25 @@ mAlgorithm expr expected = case expr of
         tyenv'' = TypeEnv.extend tyenv' (name, typescheme)
         expected'' = apply s expected'
 
-    s' <- local (const tyenv'') (mAlgorithm e2 expected'')
+    s' <- local (const tyenv'') (mAlgorithm ebody expected'')
+
+    return $ s' @@ s
+
+  ELet (LBRec fNname argName evalue) ebody -> do
+    tyenv <- ask
+    a <- newTyVar
+
+    s <- local
+      (const (TypeEnv.extend tyenv (fNname, Forall [] a)))
+      (mAlgorithm (EAbs argName evalue) a)
+
+    let tyenv' = apply s tyenv
+        expected' = apply s expected
+        a' = apply s a
+
+    s' <- local
+      (const (TypeEnv.extend tyenv' (fNname, generalization tyenv' a')))
+      (mAlgorithm ebody expected')
 
     return $ s' @@ s
 
