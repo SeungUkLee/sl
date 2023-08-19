@@ -18,7 +18,7 @@ import           System.Console.Repline (Cmd, CompleterStyle (Word0),
 import           System.Exit            (exitSuccess)
 
 import           SLang.Eval             (evalExpr)
-import           SLang.Parser           (parseSL)
+import           SLang.Parser           (parseToExpr)
 import           SLang.TypeInfer        (inferExpr)
 
 newtype Repl a = Repl
@@ -54,7 +54,7 @@ cmd code = process (T.pack code)
 
 process :: T.Text -> Repl ()
 process code = do
-  ast <- hoistError $ parseSL code
+  ast <- hoistError $ parseToExpr "(input)" code
   typ <- hoistError $ inferExpr ast
   res <- liftIO $ evalExpr ast
   val <- hoistError res
@@ -80,7 +80,7 @@ completer n = do
 
 typeof :: Cmd Repl
 typeof code = do
-  ast <- hoistError $ parseSL (T.pack code)
+  ast <- hoistError $ parseToExpr "(input)" (T.pack code)
   typ <- hoistError $ inferExpr ast
   liftIO $ putStrLn $ show code ++ " : " ++ show typ
 

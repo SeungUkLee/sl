@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module SLang.Parser
-  ( parseSL
+  ( parseToExpr
+  , ParseError
   ) where
 
 import           Text.Megaparsec                (MonadParsec (eof, try), choice,
@@ -9,9 +10,10 @@ import           Text.Megaparsec                (MonadParsec (eof, try), choice,
 
 import           Control.Monad.Combinators.Expr (makeExprParser)
 
+import qualified Data.Text                      as T
 import           SLang.Eval.Syntax              (Const (..), Expr (..),
                                                  LetBind (..))
-import           SLang.Parser.Common            (Parser)
+import           SLang.Parser.Common            (ParseError, Parser)
 import           SLang.Parser.Lexer             (identifier, operatorTable,
                                                  parens, reserved, sc,
                                                  signedInteger, symbol)
@@ -91,4 +93,5 @@ pFunc = do
   body <- pExpr
   return (foldr EAbs body args)
 
-parseSL = runParser (sc *> pExpr <* eof) "sl parser"
+parseToExpr :: FilePath -> T.Text -> Either ParseError Expr
+parseToExpr = runParser (sc *> pExpr <* eof)
