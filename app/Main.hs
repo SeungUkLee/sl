@@ -1,6 +1,6 @@
 module Main (main) where
 
-import           SLang (mainLoop)
+import qualified SLang as SL
 
 main :: IO ()
-main = mainLoop
+main = SL.main

@@ -28,6 +28,8 @@ dependencies:
 - mtl
 - repline
 - prettyprinter
+- optparse-applicative
+- directory
 
 ghc-options:
 - -Wall
