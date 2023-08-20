@@ -4,6 +4,7 @@ module SLang.Eval.Domain
   ( Value (..)
   , FuncExpr (..)
   , TermEnv
+  , Closure
   , lookup
   , extend
   , empty

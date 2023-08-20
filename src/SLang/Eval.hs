@@ -4,24 +4,23 @@ module SLang.Eval
   ( evalExpr
   ) where
 
-import           Control.Monad.Except (ExceptT, MonadError (throwError),
-                                       runExceptT)
+import           Control.Monad.Except (Except, MonadError (throwError),
+                                       runExcept)
 import           Control.Monad.Reader (MonadReader (ask, local), ReaderT (..))
 
 import qualified SLang.Eval.Domain    as TermEnv
-import           SLang.Eval.Domain    (FuncExpr (..), TermEnv, Value (..))
+import           SLang.Eval.Domain    (FuncExpr (..), TermEnv, Value (..), Closure)
 import           SLang.Eval.Error     (EvalError (..))
 import           SLang.Eval.Syntax    (Bop (..), Const (..), Expr (..),
                                        LetBind (..))
 
 newtype Eval a = Eval
-  { runEval :: ReaderT TermEnv (ExceptT EvalError IO) a
+  { runEval :: ReaderT TermEnv (Except EvalError) a
   } deriving ( Functor
              , Applicative
              , Monad
              , MonadError EvalError
              , MonadReader TermEnv
-             , MonadFail
              )
 
 eval :: Expr -> Eval Value
@@ -30,7 +29,8 @@ eval (EConst (CBool b)) = return $ VBool b
 eval (EVar name) = TermEnv.lookup name
 
 eval (EApp func arg) = do
-  VClosure (funcExpr, fenv) <- eval func
+  v <- eval func
+  (funcExpr, fenv) <- getClosure v
   varg <- eval arg
   case funcExpr of
     Fun (fname, fbody) -> do
@@ -59,8 +59,9 @@ eval (ELet (LBRec fNname argName evalue) body) = do
   local (const nenv) (eval body)
 
 eval (EIf cond th el) = do
-  VBool v <- eval cond
-  eval (if v then th else el)
+  v <- eval cond
+  bool <- getBool v
+  eval (if bool then th else el)
 
 eval (EOp bop e1 e2) = do
   v1 <- eval e1
@@ -82,8 +83,13 @@ eqOp (VInt a) (VInt b)   = return $ VBool $ a == b
 eqOp (VBool a) (VBool b) = return $ VBool $ a == b
 eqOp _ _                 = throwError $ TypeMissmatch "equal operaions expected number or boolean"
 
-runEval' :: TermEnv -> Eval a -> IO (Either EvalError a)
-runEval' env ev = runExceptT $ runReaderT (runEval ev) env
+getClosure :: Value -> Eval Closure
+getClosure (VClosure c) = return c
+getClosure _ = throwError $ TypeMissmatch "this is not a function"
 
-evalExpr :: Expr -> IO (Either EvalError Value)
-evalExpr e = runEval' TermEnv.empty $ eval e
+getBool :: Value -> Eval Bool
+getBool (VBool b) = return b
+getBool _ = throwError $ TypeMissmatch "ss"
+
+evalExpr :: Expr -> Either EvalError Value
+evalExpr e = runExcept $ runReaderT (runEval $ eval e) TermEnv.empty

@@ -56,8 +56,7 @@ process :: T.Text -> Repl ()
 process code = do
   ast <- hoistError $ parseToExpr "(input)" code
   typ <- hoistError $ inferExpr ast
-  res <- liftIO $ evalExpr ast
-  val <- hoistError res
+  val <- hoistError $ evalExpr ast
   liftIO $ putStrLn $ show val ++ " : " ++ show typ
 
 hoistError :: Show e => Either e a -> Repl a
