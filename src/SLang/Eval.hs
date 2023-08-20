@@ -89,7 +89,7 @@ getClosure _ = throwError $ TypeMissmatch "this is not a function"
 
 getBool :: Value -> Eval Bool
 getBool (VBool b) = return b
-getBool _ = throwError $ TypeMissmatch "ss"
+getBool _ = throwError $ TypeMissmatch "this is not a bool"
 
 evalExpr :: Expr -> Either EvalError Value
 evalExpr e = runExcept $ runReaderT (runEval $ eval e) TermEnv.empty
