@@ -9,7 +9,8 @@ import           Control.Monad.Except (Except, MonadError (throwError),
 import           Control.Monad.Reader (MonadReader (ask, local), ReaderT (..))
 
 import qualified SLang.Eval.Domain    as TermEnv
-import           SLang.Eval.Domain    (FuncExpr (..), TermEnv, Value (..), Closure)
+import           SLang.Eval.Domain    (Closure, FuncExpr (..), TermEnv,
+                                       Value (..))
 import           SLang.Eval.Error     (EvalError (..))
 import           SLang.Eval.Syntax    (Bop (..), Const (..), Expr (..),
                                        LetBind (..))
@@ -85,11 +86,11 @@ eqOp _ _                 = throwError $ TypeMissmatch "equal operaions expected 
 
 getClosure :: Value -> Eval Closure
 getClosure (VClosure c) = return c
-getClosure _ = throwError $ TypeMissmatch "this is not a function"
+getClosure _            = throwError $ TypeMissmatch "this is not a function"
 
 getBool :: Value -> Eval Bool
 getBool (VBool b) = return b
-getBool _ = throwError $ TypeMissmatch "this is not a bool"
+getBool _         = throwError $ TypeMissmatch "this is not a bool"
 
 evalExpr :: Expr -> Either EvalError Value
 evalExpr e = runExcept $ runReaderT (runEval $ eval e) TermEnv.empty
