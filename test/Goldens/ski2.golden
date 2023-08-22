@@ -1,1 +1,1 @@
-"<<function>> : (int -> ad) -> ad"
+- : (int -> ad) -> ad = <<function>>

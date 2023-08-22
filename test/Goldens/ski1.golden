@@ -1,1 +1,1 @@
-"<<function>> : ad -> (ad -> ac) -> ac"
+- : ad -> (ad -> ac) -> ac = <<function>>

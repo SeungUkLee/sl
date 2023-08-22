@@ -1,1 +1,1 @@
-"<<function>> : (p -> p -> o) -> (q -> p) -> q -> q -> o"
+- : (p -> p -> o) -> (q -> p) -> q -> q -> o = <<function>>
