@@ -13,7 +13,8 @@ import           Control.Monad.Combinators.Expr (makeExprParser)
 import qualified Data.Text                      as T
 import           SLang.Eval.Syntax              (Const (..), Expr (..),
                                                  LetBind (..))
-import           SLang.Parser.Common            (ParseError, Parser)
+import           SLang.Parser.Common            (Parser)
+import           SLang.Parser.Error             (ParseError (..))
 import           SLang.Parser.Lexer             (identifier, operatorTable,
                                                  parens, reserved, sc,
                                                  signedInteger, symbol)
@@ -94,4 +95,6 @@ pFunc = do
   return (foldr EAbs body args)
 
 parseToExpr :: FilePath -> T.Text -> Either ParseError Expr
-parseToExpr = runParser (sc *> pExpr <* eof)
+parseToExpr file txt = case runParser (sc *> pExpr <* eof) file txt of
+  Left e     -> Left $ ParseError e
+  Right expr -> Right expr

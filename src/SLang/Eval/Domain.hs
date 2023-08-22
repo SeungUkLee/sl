@@ -51,6 +51,7 @@ empty :: TermEnv
 empty = TermEnv Map.empty
 
 instance Show Value where
-  show (VInt n)     = show n
-  show (VBool b)    = show b
-  show (VClosure _) = "<<function>>"
+  show (VInt n)      = show n
+  show (VBool True)  = "true"
+  show (VBool False) = "false"
+  show (VClosure _)  = "<<function>>"

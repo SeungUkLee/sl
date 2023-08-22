@@ -40,15 +40,16 @@ unify
   :: (MonadError TypeError m)
   => Type
   -> Type
+  -> Expr
   -> m Subst
-unify a b | a == b = return Subst.empty
-unify (TVar name) t | not (checkOccurs name t) = return $ Subst.make name t
-unify t (TVar name) | not (checkOccurs name t) = return $ Subst.make name t
-unify (TFun t1 t2) (TFun t1' t2') = do
-  s <- unify t1 t1'
-  s' <- unify (apply s t2) (apply s t2')
+unify a b _ | a == b = return Subst.empty
+unify (TVar name) t _ | not (checkOccurs name t) = return $ Subst.make name t
+unify t (TVar name) _ | not (checkOccurs name t) = return $ Subst.make name t
+unify (TFun t1 t2) (TFun t1' t2') expr = do
+  s <- unify t1 t1' expr
+  s' <- unify (apply s t2) (apply s t2') expr
   return $ s' @@ s
-unify received expected = throwError $ UnificationError received expected
+unify received expected expr = throwError $ UnificationError received expected expr
 
 checkOccurs :: TVar -> Type -> Bool
 checkOccurs x (TVar name)  = x == name
@@ -73,20 +74,20 @@ mAlgorithm
   -> Type
   -> m Subst
 mAlgorithm expr expected = case expr of
-  EConst (CInt _) -> unify TInt expected
+  EConst (CInt _) -> unify TInt expected expr
 
-  EConst (CBool _) -> unify TBool expected
+  EConst (CBool _) -> unify TBool expected expr
 
   EVar name -> do
     typescheme <- TypeEnv.lookup name
     typ <- instantiation typescheme
-    unify typ expected
+    unify typ expected expr
 
   EAbs name e -> do
     tyenv <- ask
     a1 <- newTyVar
     a2 <- newTyVar
-    s <- unify (TFun a1 a2) expected
+    s <- unify (TFun a1 a2) expected expr
 
     let tyenv' = TypeEnv.extend (apply s tyenv) (name, Forall [] $ apply s a1)
         a3 = apply s a2
@@ -168,7 +169,7 @@ mAlgorithm expr expected = case expr of
     where
       binaryop op r = do
         tyenv <- ask
-        s <- unify r expected
+        s <- unify r expected expr
 
         let tyenv' = apply s tyenv
             op' = apply s op

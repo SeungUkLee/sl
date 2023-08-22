@@ -8,4 +8,4 @@ data EvalError
 
 instance Show EvalError where
   show (TypeMissmatch txt)    = "[Error] type missmatch : " ++ txt
-  show (UnboundVariable name) = "[Error] unbound variable : " ++ show name
+  show (UnboundVariable name) = "[Error] unbound variable : " ++ name
