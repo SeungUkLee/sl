@@ -31,7 +31,7 @@ import           System.Directory      (doesFileExist)
 import           System.Exit           (exitFailure)
 import           System.IO             (Handle, IOMode (ReadMode, WriteMode),
                                         hGetContents, hPutStrLn, stderr, stdin,
-                                        stdout, withFile)
+                                        stdout, withFile, hPrint)
 
 data SLangError
   = ParseError ParseError
@@ -70,10 +70,10 @@ main = do
       REPL                   -> mainLoop
     )
     [ Handler $ \case
-        ParseError e -> hPutStrLn stderr $ show e
-        TypeError e -> hPutStrLn stderr $ show e
-        EvalError e -> hPutStrLn stderr $ show e
-    , Handler $ \(SomeException e) -> hPutStrLn stderr (show e)
+        ParseError e -> hPrint stderr e
+        TypeError e -> hPrint stderr e
+        EvalError e -> hPrint stderr e
+    , Handler $ \(SomeException e) -> hPrint stderr e
     ]
 
 actionWithIOHandle :: (FilePath -> Handle -> Handle -> IO a) -> Input -> Output -> IO a
@@ -203,7 +203,7 @@ parse :: FilePath -> Handle -> Handle -> IO ()
 parse file input output = do
   code <- hGetContents input
   ast <- execParser file (T.pack code)
-  hPutStrLn output $ show ast
+  hPrint output ast
 
 typeof :: FilePath -> Handle -> Handle -> IO ()
 typeof file input output = do
