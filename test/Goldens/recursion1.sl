@@ -6,3 +6,7 @@ let rec iter = fun f n a ->
     else iter f (n - 1) (f a)
 in
   iter (fun x -> x + 1) 10 100
+
+(* result : 
+ * - : int = 0
+ *)

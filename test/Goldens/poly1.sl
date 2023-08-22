@@ -1,7 +1,7 @@
-(* polymorphic and
- * block comments
- * test *)
+(* polymorphic *)
 
 let f = fun x -> x in f
 
-(* results: a -> a *)
+(* result : 
+ * - : a -> a = <<function>> 
+ *)

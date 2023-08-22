@@ -1,4 +1,4 @@
-(* Recursion (type error) *)
+(* Recursion *)
 
 let rec foo = fun f g n ->
   if n == 0
@@ -6,3 +6,5 @@ let rec foo = fun f g n ->
     else foo (f g) (g f) (n - 1)
 in
   foo (fun x -> x) (fun y -> y) 3
+
+(* result : type error *)
