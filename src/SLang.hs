@@ -4,6 +4,10 @@
 
 module SLang
   ( main
+  , execEval
+  , execParser
+  , execTypeInfer
+  , SLangError (..)
   ) where
 
 import           Control.Exception     (Exception, Handler (Handler),
@@ -30,8 +34,8 @@ import           SLang.TypeInfer.Type  (Type)
 import           System.Directory      (doesFileExist)
 import           System.Exit           (exitFailure)
 import           System.IO             (Handle, IOMode (ReadMode, WriteMode),
-                                        hGetContents, hPutStrLn, stderr, stdin,
-                                        stdout, withFile, hPrint)
+                                        hGetContents, hPrint, hPutStrLn, stderr,
+                                        stdin, stdout, withFile)
 
 data SLangError
   = ParseError ParseError
