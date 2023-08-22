@@ -57,7 +57,7 @@ process code = do
   ast <- hoistError $ parseToExpr "(input)" code
   typ <- hoistError $ inferExpr ast
   val <- hoistError $ evalExpr ast
-  liftIO $ putStrLn $ show val ++ " : " ++ show typ
+  liftIO $ putStrLn $ "- : " ++ show typ ++ " = " ++ show val
 
 hoistError :: Show e => Either e a -> Repl a
 hoistError (Right v) = return v
@@ -81,7 +81,7 @@ typeof :: Cmd Repl
 typeof code = do
   ast <- hoistError $ parseToExpr "(input)" (T.pack code)
   typ <- hoistError $ inferExpr ast
-  liftIO $ putStrLn $ show code ++ " : " ++ show typ
+  liftIO $ putStrLn $ code ++ " : " ++ show typ
 
 load :: Cmd Repl
 load file = do
