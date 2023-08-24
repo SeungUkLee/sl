@@ -17,7 +17,7 @@ import qualified Data.Text             as T
 import           Options.Applicative   (CommandFields, Mod, Parser, ParserInfo,
                                         command, fullDesc, header, help, helper,
                                         info, long, metavar, optional, progDesc,
-                                        short, strOption, subparser)
+                                        short, strOption, subparser, (<|>))
 import qualified Options.Applicative   as Opt
 
 import           SLang.Eval            (evalExpr)
@@ -186,7 +186,7 @@ pREPLCommand = command "repl" pREPLInfo
 
 pOptsInfo :: ParserInfo Options
 pOptsInfo = info
-  (helper <*> pOptions)
+  (helper <*> pOptions <|> pREPL)
   (fullDesc
   <> header "SL - a simple language"
   <> progDesc "Command line for SL"
