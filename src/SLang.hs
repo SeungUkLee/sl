@@ -32,7 +32,8 @@ import           Data.Maybe            (fromMaybe)
 import           SLang.Eval.Domain     (Value)
 import           SLang.TypeInfer.Type  (Type)
 import           System.Directory      (doesFileExist)
-import           System.Exit           (exitFailure)
+import           System.Exit           (ExitCode (ExitFailure, ExitSuccess),
+                                        exitFailure)
 import           System.IO             (Handle, IOMode (ReadMode, WriteMode),
                                         hGetContents, hPrint, hPutStrLn, stderr,
                                         stdin, stdout, withFile)
@@ -77,6 +78,9 @@ main = do
         ParseError e -> hPrint stderr e
         TypeError e -> hPrint stderr e
         EvalError e -> hPrint stderr e
+    , Handler $ \case
+        ExitSuccess -> return ()
+        ExitFailure _ -> return ()
     , Handler $ \(SomeException e) -> hPrint stderr e
     ]
 
