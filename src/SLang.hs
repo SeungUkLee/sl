@@ -192,8 +192,8 @@ pOptsInfo :: ParserInfo Options
 pOptsInfo = info
   (helper <*> pOptions <|> pREPL)
   (fullDesc
-  <> header "SL - a simple language"
-  <> progDesc "Command line for SL"
+  <> header "SLang - a simple language"
+  <> progDesc "Command line for SLang"
   )
 
 optParse :: IO Options
