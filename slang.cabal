@@ -4,11 +4,11 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 
-name:           sl
+name:           slang
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/seunguklee/sl#readme>
-homepage:       https://github.com/seunguklee/sl#readme
-bug-reports:    https://github.com/seunguklee/sl/issues
+description:    Please see the README on GitHub at <https://github.com/seunguklee/slang#readme>
+homepage:       https://github.com/seunguklee/slang#readme
+bug-reports:    https://github.com/seunguklee/slang/issues
 author:         Seunguk Lee
 maintainer:     lsy931106@gmail.com
 copyright:      2023 Seunguk Lee
@@ -21,7 +21,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/seunguklee/sl
+  location: https://github.com/seunguklee/slang
 
 library
   exposed-modules:
@@ -44,7 +44,7 @@ library
       SLang.TypeInfer.Type
       SLang.TypeInfer.TypeEnv
   other-modules:
-      Paths_sl
+      Paths_slang
   hs-source-dirs:
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
@@ -61,10 +61,10 @@ library
     , text
   default-language: Haskell2010
 
-executable sl-exe
+executable slang-exe
   main-is: Main.hs
   other-modules:
-      Paths_sl
+      Paths_slang
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
@@ -78,15 +78,15 @@ executable sl-exe
     , parser-combinators
     , prettyprinter
     , repline
-    , sl
+    , slang
     , text
   default-language: Haskell2010
 
-test-suite sl-test
+test-suite slang-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_sl
+      Paths_slang
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
@@ -102,7 +102,7 @@ test-suite sl-test
     , parser-combinators
     , prettyprinter
     , repline
-    , sl
+    , slang
     , tasty
     , tasty-golden
     , text

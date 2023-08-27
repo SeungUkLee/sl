@@ -1,6 +1,6 @@
-name:                sl
+name:                slang
 version:             0.1.0.0
-github:              "seunguklee/sl"
+github:              "seunguklee/slang"
 license:             MIT
 author:              "Seunguk Lee"
 maintainer:          "lsy931106@gmail.com"
@@ -17,7 +17,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/seunguklee/sl#readme>
+description:         Please see the README on GitHub at <https://github.com/seunguklee/slang#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -46,7 +46,7 @@ library:
   source-dirs: src
 
 executables:
-  sl-exe:
+  slang-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -54,10 +54,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - sl
+    - slang
 
 tests:
-  sl-test:
+  slang-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -65,7 +65,7 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - sl
+    - slang
     - tasty
     - tasty-golden
     - filepath
