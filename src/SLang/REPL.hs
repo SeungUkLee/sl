@@ -47,7 +47,22 @@ final = do
   return Exit
 
 ini :: Repl ()
-ini = liftIO $ putStrLn "Welcome!\n"
+ini = liftIO $ putStrLn introMsg
+
+introMsg :: String
+introMsg = unlines
+  [ ""
+  , "   _____ _                         Welcome to SLang REPL!"
+  , "  / ____| |"
+  , " | (___ | |     __ _ _ __   __ _   Author:  Seunguk Lee"
+  , "  \\___ \\| |    / _` | '_ \\ / _` |  GitHub:  https://github.com/seunguklee/slang"
+  , "  ____) | |___| (_| | | | | (_| |  Issues:  https://github.com/seunguklee/issues"
+  , " |_____/|______\\__,_|_| |_|\\__, |  About:   ML dialect language with let-ploymorphic type system"
+  , "                            __/ |  License: MIT"
+  , "                           |___/"
+  , ""
+  , "Type ':help' for available commands"
+  ]
 
 cmd :: String -> Repl ()
 cmd code = process (T.pack code)
