@@ -129,6 +129,18 @@ You can use REPL with the `repl` subcommand.
 
 ```
 $ stack run -- repl
+
+   _____ _                         Welcome to SLang REPL!
+  / ____| |
+ | (___ | |     __ _ _ __   __ _   Author:  Seunguk Lee
+  \___ \| |    / _` | '_ \ / _` |  GitHub:  https://github.com/seunguklee/slang
+  ____) | |___| (_| | | | | (_| |  Issues:  https://github.com/seunguklee/issues
+ |_____/|______\__,_|_| |_|\__, |  About:   ML dialect language with let-ploymorphic type system
+                            __/ |  License: MIT
+                           |___/
+
+Type ':help' for available commands
+
 sl>
 ```
 
