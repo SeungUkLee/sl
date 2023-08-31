@@ -146,7 +146,17 @@ sl>
 
 ### REPL
 
+#### `:help`
+
+Show list of commands
+
+```
+sl> :help
+```
+
 #### `:load`
+
+Load file and interpret 
 
 ```
 (* example.sl *)
@@ -158,7 +168,18 @@ sl> :load ./example.sl
 - : int = 3
 ```
 
+#### `:parse`
+
+Parse the given text and show AST
+
+```
+sl> :parse let x = 1 in x
+ELet (LBVal "x" (EConst (CInt 1))) (EVar "x")
+```
+
 #### `:type`
+
+Show the type of given text
 
 ```
 sl> :type let x = 1 in x
@@ -166,6 +187,8 @@ let x = 1 in x : int
 ```
 
 #### `:quit`
+
+Exit REPL
 
 ```
 sl> :quit
