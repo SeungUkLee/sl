@@ -31,6 +31,12 @@ $ stack build
 $ stack run
 ```
 
+## Test (Golden test)
+
+```
+$ stack test
+```
+
 ## Usage
 
 ### Command line
