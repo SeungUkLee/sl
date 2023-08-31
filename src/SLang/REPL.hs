@@ -6,7 +6,6 @@ module SLang.REPL
 
 import qualified Data.Text              as T
 
-import           Control.Monad.State    (MonadIO (..))
 import           Data.Bifunctor         (second)
 import           Data.List              (isPrefixOf)
 import qualified Data.Text.IO           as TIO
@@ -17,6 +16,7 @@ import           System.Console.Repline (Cmd, CompleterStyle (Word0),
                                          WordCompleter, abort, evalReplOpts)
 import           System.Exit            (exitSuccess)
 
+import           Control.Monad.IO.Class (MonadIO (liftIO))
 import           SLang.Eval             (evalExpr)
 import           SLang.Parser           (parseToExpr)
 import           SLang.TypeInfer        (inferExpr)
