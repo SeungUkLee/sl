@@ -85,11 +85,13 @@ opts =
   [ ("load", load)
   , ("type", typeof)
   , ("quit", quit)
+  , ("parse", parse)
+  , ("help", help)
   ]
 
 completer :: Monad m => WordCompleter m
 completer n = do
-  let cmds = [":type", ":load", ":quit"]
+  let cmds = [":type" , ":load" , ":quit" , ":parse" , ":help"]
   return $ filter (isPrefixOf n) cmds
 
 typeof :: Cmd Repl
@@ -102,6 +104,25 @@ load :: Cmd Repl
 load file = do
   code <- liftIO $ TIO.readFile file
   process code
+
+parse :: Cmd Repl
+parse code = do
+  ast <- hoistError $ parseToExpr "(input)" (T.pack code)
+  liftIO $ print ast
+
+help :: Cmd Repl
+help _ = do
+  liftIO $ putStrLn helpMsg
+
+helpMsg :: String
+helpMsg = unlines
+  [ "Commands available from the REPL\n"
+  , "   :help                  display this list of commands"
+  , "   :load <file>           load file and interpret"
+  , "   :parse <expr>          parse <expr> and show the AST of <expr>"
+  , "   :quit                  exit REPL"
+  , "   :type <expr>           show the type of <expr>"
+  ]
 
 quit :: Cmd Repl
 quit _ = liftIO exitSuccess
