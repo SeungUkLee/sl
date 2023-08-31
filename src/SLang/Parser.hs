@@ -95,6 +95,6 @@ pFunc = do
   return (foldr EAbs body args)
 
 parseToExpr :: FilePath -> T.Text -> Either ParseError Expr
-parseToExpr file txt = case runParser (sc *> pExpr <* eof) file txt of
+parseToExpr file txt = case runParser (sc *> pExpr <* eof) file (T.strip txt) of
   Left e     -> Left $ ParseError e
   Right expr -> Right expr
