@@ -7,6 +7,7 @@ module SLang.Eval.Syntax
   , showStrExpr
   ) where
 
+import qualified Data.Text     as T
 import           Prettyprinter (Doc, Pretty (pretty), (<+>))
 import           SLang.Pretty  (parensIf)
 
@@ -25,7 +26,7 @@ data LetBind
   | LBVal Name Expr
   deriving Show
 
-type Name = String
+type Name = T.Text
 
 data Const
   = CInt Integer
@@ -50,7 +51,7 @@ pprExpr (EAbs name body) = pretty "fun" <+> pretty name <+> pretty "->" <+> pprE
 pprExpr (ELet bind body) = pretty "let" <+> pprLetBind bind <+> pretty "in" <+> pprExpr body
 pprExpr (EIf cond th el) = pretty "if" <+> pprExpr cond <+> pretty "then" <+> pprExpr th <+> pretty "else" <+> pprExpr el
 pprExpr (EOp bop e1 e2) = pprExpr e1 <+> pprBop bop <+> pprExpr e2
-  
+
 isAbs :: Expr -> Bool
 isAbs EAbs{} = True
 isAbs _      = False
@@ -66,6 +67,6 @@ pprBop Mul   = pretty "*"
 pprBop Equal = pretty "=="
 
 pprConst :: Const -> Doc ann
-pprConst (CInt n)  = pretty n
-pprConst (CBool True) = pretty "true"
+pprConst (CInt n)      = pretty n
+pprConst (CBool True)  = pretty "true"
 pprConst (CBool False) = pretty "false"

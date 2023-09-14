@@ -10,6 +10,7 @@ import           Control.Monad.Except         (MonadError (throwError),
 import           Control.Monad.Reader         (MonadReader (ask, local))
 import           Control.Monad.State          (MonadState (get, put))
 import qualified Data.Set                     as Set
+import qualified Data.Text                    as T
 
 import           SLang.Eval.Syntax            (Bop (..), Const (..), Expr (..),
                                                LetBind (..))
@@ -65,8 +66,8 @@ newTyVar = do
   put s{count = count s + 1}
   return $ TVar $ TV (letters !! count s)
 
-letters :: [String]
-letters = [1..] >>= flip replicateM ['a'..'z']
+letters :: [T.Text]
+letters = fmap T.pack $ [1..] >>= flip replicateM ['a'..'z']
 
 mAlgorithm
   :: (MonadReader TypeEnv m, MonadState InferState m, MonadError TypeError m)

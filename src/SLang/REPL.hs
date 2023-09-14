@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 module SLang.REPL
   ( mainLoop
@@ -47,10 +48,10 @@ final = do
   return Exit
 
 ini :: Repl ()
-ini = liftIO $ putStrLn introMsg
+ini = liftIO $ TIO.putStrLn introMsg
 
-introMsg :: String
-introMsg = unlines
+introMsg :: T.Text
+introMsg = T.unlines
   [ ""
   , "   _____ _                         Welcome to SLang REPL!"
   , "  / ____| |"
@@ -112,10 +113,10 @@ parse code = do
 
 help :: Cmd Repl
 help _ = do
-  liftIO $ putStrLn helpMsg
+  liftIO $ TIO.putStrLn helpMsg
 
-helpMsg :: String
-helpMsg = unlines
+helpMsg :: T.Text
+helpMsg = T.unlines
   [ "Commands available from the REPL\n"
   , "   :help                  display this list of commands"
   , "   :load <file>           load file and interpret"

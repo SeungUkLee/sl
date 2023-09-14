@@ -4,6 +4,7 @@ module SLang.TypeInfer.Type
   , TVar (..)
   ) where
 
+import qualified Data.Text     as T
 import           Prettyprinter (Doc, Pretty (pretty), hcat, punctuate, space,
                                 (<+>))
 
@@ -16,7 +17,7 @@ data Type
   | TFun Type Type
   deriving (Eq, Ord)
 
-newtype TVar = TV String
+newtype TVar = TV T.Text
   deriving (Eq, Ord)
 
 data Scheme = Forall [TVar] Type

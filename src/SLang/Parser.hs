@@ -71,7 +71,7 @@ pLetRec = do
     (argName, args', evalue') -> ELet (LBRec fNname argName (foldr EAbs evalue' args')) <$> pExpr
   where
     -- | TODO: rename ...
-    pm :: [String] -> Expr -> (String, [String], Expr)
+    pm :: [T.Text] -> Expr -> (T.Text, [T.Text], Expr)
     pm li e = case (li, e) of
       ([], EAbs name e') -> (name, [], e')
       ([], _)            -> ("", [], e)
