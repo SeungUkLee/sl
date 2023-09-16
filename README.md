@@ -4,7 +4,7 @@
 > 
 > `slang` is experimental language.
 > 
-> This language was created while studying Haskell, PLT and may contain the wrong code. 
+> This language was created while studying Haskell and PLT, so it may contain the wrong code. 
 >
 > Please, don't use it for anything important.
 >
