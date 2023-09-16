@@ -2,7 +2,6 @@
 
 import qualified Data.ByteString.Lazy.Char8 as BS
 import           Data.Functor               ((<&>))
-import qualified Data.Text                  as T
 
 import           System.FilePath            (replaceExtension, takeBaseName)
 
