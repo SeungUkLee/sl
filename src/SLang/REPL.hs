@@ -17,11 +17,14 @@ import           System.Console.Repline (Cmd, CompleterStyle (Word0),
                                          WordCompleter, abort, evalReplOpts)
 import           System.Exit            (exitSuccess)
 
+import           Control.Exception      (Exception (displayException))
 import           Control.Monad.IO.Class (MonadIO (liftIO))
 import           SLang.Eval             (evalExpr)
 import           SLang.Parser           (parseToExpr)
+import qualified SLang.Pretty           as SP
+import qualified SLang.Result           as Result
 import           SLang.TypeInfer        (inferExpr)
-
+import qualified System.IO              as IO
 newtype Repl a = Repl
   { runRepl :: HaskelineT IO a
   } deriving ( Functor
@@ -44,7 +47,7 @@ mainLoop = evalReplOpts $ ReplOpts
 
 final :: Repl ExitDecision
 final = do
-  liftIO $ putStrLn "GoodBye!\n"
+  liftIO $ TIO.putStrLn "GoodBye!\n"
   return Exit
 
 ini :: Repl ()
@@ -73,12 +76,12 @@ process code = do
   ast <- hoistError $ parseToExpr "(input)" code
   typ <- hoistError $ inferExpr ast
   val <- hoistError $ evalExpr ast
-  liftIO $ putStrLn $ "- : " ++ show typ ++ " = " ++ show val
+  liftIO $ SP.renderIO IO.stdout $ SP.pretty $ Result.Interpret typ val
 
-hoistError :: Show e => Either e a -> Repl a
+hoistError :: Exception e => Either e a -> Repl a
 hoistError (Right v) = return v
 hoistError (Left err) = do
-  liftIO $ print err
+  liftIO $ TIO.putStrLn $ T.pack $ displayException err
   Repl abort
 
 opts :: Options Repl
@@ -99,7 +102,7 @@ typeof :: Cmd Repl
 typeof code = do
   ast <- hoistError $ parseToExpr "(input)" (T.pack code)
   typ <- hoistError $ inferExpr ast
-  liftIO $ putStrLn $ code ++ " : " ++ show typ
+  liftIO $ SP.renderIO IO.stdout $ SP.pretty $ Result.TypeInfer ast typ
 
 load :: Cmd Repl
 load file = do
@@ -109,7 +112,7 @@ load file = do
 parse :: Cmd Repl
 parse code = do
   ast <- hoistError $ parseToExpr "(input)" (T.pack code)
-  liftIO $ print ast
+  liftIO $ SP.renderIO IO.stdout $ SP.pretty $ Result.Parse ast
 
 help :: Cmd Repl
 help _ = do

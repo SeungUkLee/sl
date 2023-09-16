@@ -14,19 +14,24 @@ import           Control.Monad.Except (MonadError (throwError))
 import           Control.Monad.Reader (MonadReader (ask))
 import qualified Data.Map             as Map
 import           Prelude              hiding (lookup)
+import           Prettyprinter        (Doc)
 
 import           SLang.Eval.Error     (EvalError (UnboundVariable))
 import           SLang.Eval.Syntax    (Expr, Name)
+import qualified SLang.Pretty         as SP
+import           SLang.Pretty         (Pretty)
 
 data Value
   = VInt Integer
   | VBool Bool
   | VClosure Closure
+  deriving Show
 
 type Closure = (FuncExpr, TermEnv)
 data FuncExpr
   = RecFun (Name, Name, Expr)
   | Fun (Name, Expr)
+  deriving Show
 
 newtype TermEnv = TermEnv (Map.Map Name Value)
   deriving Show
@@ -50,8 +55,11 @@ extend (TermEnv env) (x, s) = TermEnv $ Map.insert x s env
 empty :: TermEnv
 empty = TermEnv Map.empty
 
-instance Show Value where
-  show (VInt n)      = show n
-  show (VBool True)  = "true"
-  show (VBool False) = "false"
-  show (VClosure _)  = "<<function>>"
+instance Pretty Value where
+  pretty = pprValue
+
+pprValue :: Value -> Doc ann
+pprValue (VInt n)      = SP.pretty n
+pprValue (VBool True)  = SP.pretty "true"
+pprValue (VBool False) = SP.pretty "false"
+pprValue (VClosure _)  = SP.pretty "<<function>>"

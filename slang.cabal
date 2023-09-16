@@ -36,6 +36,7 @@ library
       SLang.Parser.Lexer
       SLang.Pretty
       SLang.REPL
+      SLang.Result
       SLang.TypeInfer
       SLang.TypeInfer.Algorithm.M
       SLang.TypeInfer.Error

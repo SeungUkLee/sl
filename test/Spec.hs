@@ -9,12 +9,16 @@ import           System.FilePath            (replaceExtension, takeBaseName)
 import           Test.Tasty                 (TestTree, defaultMain, testGroup)
 import           Test.Tasty.Golden          (findByExtension, goldenVsString)
 
-import           Control.Exception          (Handler (Handler),
+import           Control.Exception          (Exception (displayException),
+                                             Handler (Handler),
                                              SomeException (SomeException),
                                              catches)
 import           Data.String
+import qualified Data.Text.IO               as TIO
 import           SLang                      (SLangError (..), execEval,
                                              execParser, execTypeInfer)
+import qualified SLang.Pretty               as SP
+import qualified SLang.Result               as Result
 
 main :: IO ()
 main = do
@@ -33,15 +37,15 @@ mkGoldenTest path = do
   return (goldenVsString testName goldenPath $ action <&> BS.pack . fromString)
   where
     action = catches (do
-      script <- readFile path
-      ast <- execParser path $ T.pack script
+      script <- TIO.readFile path
+      ast <- execParser path script
       typ <- execTypeInfer ast
       val <- execEval ast
-      return $ "- : " ++ show typ ++ " = " ++ show val
+      return $ show $ SP.pretty $ Result.Interpret typ val
       )
       [ Handler $ \case
-          ParseError e -> return $ show e
-          TypeError e -> return $ show e
-          EvalError e -> return $ show e
-      , Handler $ \(SomeException e) -> return $ show e
+          ParseError e -> return $ displayException e
+          TypeError e -> return $ displayException e
+          EvalError e -> return $ displayException e
+      , Handler $ \(SomeException e) -> return $ displayException e
       ]

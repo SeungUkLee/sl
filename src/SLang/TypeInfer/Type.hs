@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module SLang.TypeInfer.Type
   ( Type (..)
   , Scheme (..)
@@ -5,46 +7,47 @@ module SLang.TypeInfer.Type
   ) where
 
 import qualified Data.Text     as T
-import           Prettyprinter (Doc, Pretty (pretty), hcat, punctuate, space,
-                                (<+>))
+import           Prettyprinter (Doc, hcat, punctuate, space, (<+>))
 
-import           SLang.Pretty  (parensIf)
+import qualified SLang.Pretty  as SP
+import           SLang.Pretty  (Pretty)
 
 data Type
   = TInt
   | TBool
   | TVar TVar
   | TFun Type Type
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 newtype TVar = TV T.Text
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 data Scheme = Forall [TVar] Type
-  deriving (Eq , Ord)
+  deriving (Eq , Ord, Show)
 
-instance Show Type where
-  show = show . pprType
+instance Pretty Type where
+  pretty = pprType
 
-instance Show TVar where
-  show = show . pprTVar
+instance Pretty TVar where
+  pretty = pprTVar
 
-instance Show Scheme where
-  show = show . pprScheme
+instance Pretty Scheme where
+  pretty = pprScheme
 
 pprType :: Type -> Doc ann
-pprType TInt                        = pretty "int"
-pprType TBool                       = pretty "bool"
+pprType TInt                        = "int"
+pprType TBool                       = "bool"
 pprType (TVar tvar)                 = pprTVar tvar
-pprType (TFun inputType returnType) = parensIf (isArrow inputType) (pprType inputType)
-  <+> pretty "->" <+> pprType returnType
+pprType (TFun inputType returnType) =
+  SP.parensIf (isArrow inputType) (pprType inputType) <+> "->" <+> pprType returnType
   where
     isArrow TFun{} = True
     isArrow _      = False
 
 pprTVar :: TVar -> Doc ann
-pprTVar (TV name) = pretty name
+pprTVar (TV name) = SP.pretty name
 
 pprScheme :: Scheme -> Doc ann
 pprScheme (Forall [] t) = pprType t
-pprScheme (Forall ts t) = pretty "forall" <+> hcat (punctuate space (fmap pprTVar ts)) <+> pretty "."  <+> pprType t
+pprScheme (Forall ts t) =
+  "forall" <+> hcat (punctuate space (fmap pprTVar ts)) <+> "." <+> pprType t

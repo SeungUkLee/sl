@@ -1,5 +1,6 @@
 {-# LANGUAGE ApplicativeDo       #-}
 {-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module SLang
@@ -10,10 +11,12 @@ module SLang
   , SLangError (..)
   ) where
 
-import           Control.Exception     (Exception, Handler (Handler),
+import           Control.Exception     (Exception (displayException),
+                                        Handler (Handler),
                                         SomeException (SomeException), catches,
                                         throwIO)
 import qualified Data.Text             as T
+import qualified Data.Text.IO          as TIO
 import           Options.Applicative   (CommandFields, Mod, Parser, ParserInfo,
                                         command, fullDesc, header, help, helper,
                                         info, long, metavar, optional, progDesc,
@@ -30,13 +33,14 @@ import           SLang.TypeInfer.Error (TypeError)
 
 import           Data.Maybe            (fromMaybe)
 import           SLang.Eval.Domain     (Value)
+import qualified SLang.Pretty          as SP
+import qualified SLang.Result          as Result
 import           SLang.TypeInfer.Type  (Type)
 import           System.Directory      (doesFileExist)
 import           System.Exit           (ExitCode (ExitFailure, ExitSuccess),
                                         exitFailure)
-import           System.IO             (Handle, IOMode (ReadMode, WriteMode),
-                                        hGetContents, hPrint, hPutStrLn, stderr,
-                                        stdin, stdout, withFile)
+import qualified System.IO             as IO
+import           System.IO             (Handle, IOMode (ReadMode, WriteMode))
 
 data SLangError
   = ParseError ParseError
@@ -44,7 +48,10 @@ data SLangError
   | TypeError TypeError
   deriving Show
 
-instance Exception SLangError
+instance Exception SLangError where
+  displayException (ParseError e) = displayException e
+  displayException (EvalError e)  = displayException e
+  displayException(TypeError e)   = displayException e
 
 data Options
   = Interpret Input Output
@@ -63,6 +70,7 @@ data Output
   | OutputFile FilePath
   deriving Show
 
+
 -- | Command line entry point
 main :: IO ()
 main = do
@@ -75,13 +83,13 @@ main = do
       REPL                   -> mainLoop
     )
     [ Handler $ \case
-        ParseError e -> hPrint stderr e
-        TypeError e -> hPrint stderr e
-        EvalError e -> hPrint stderr e
+        ParseError e -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
+        TypeError e -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
+        EvalError e -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
     , Handler $ \case
         ExitSuccess -> return ()
         ExitFailure _ -> return ()
-    , Handler $ \(SomeException e) -> hPrint stderr e
+    , Handler $ \(SomeException e) -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
     ]
 
 actionWithIOHandle :: (FilePath -> Handle -> Handle -> IO a) -> Input -> Output -> IO a
@@ -91,28 +99,28 @@ actionWithIOHandle action input output =
 withInputHandle :: (FilePath -> Handle -> IO a) -> Input ->  IO a
 withInputHandle action input =
   case input of
-    Stdin          -> action "(input)" stdin
-    InputFile file -> withFile file ReadMode $ action file
+    Stdin          -> action "(input)" IO.stdin
+    InputFile file -> IO.withFile file ReadMode $ action file
 
 withOutputHandle :: (Handle -> IO a) -> Output -> IO a
 withOutputHandle action output =
   case output of
-    Stdout -> action stdout
+    Stdout -> action IO.stdout
     OutputFile file -> do
       exists <- doesFileExist file
       shouldOpenFile <- if exists then confirm else pure True
       if shouldOpenFile
-        then withFile file WriteMode action
+        then IO.withFile file WriteMode action
         else exitFailure
 
 confirm :: IO Bool
 confirm = do
-  putStrLn "This file alredy exists. Do you want to overwrite it? (y/n)"
+  TIO.putStrLn "This file alredy exists. Do you want to overwrite it? (y/n)"
   answer <- getLine
   case answer of
     "y" -> pure True
     "n" -> pure False
-    _   -> putStrLn "Please use 'y' or 'n'" *> confirm
+    _   -> TIO.putStrLn "Please use 'y' or 'n'" *> confirm
 
 pOptions :: Parser Options
 pOptions = subparser $ pInterpretCommand <> pParsingCommand <> pTypeOfCommand <> pREPLCommand
@@ -201,24 +209,24 @@ optParse = Opt.execParser pOptsInfo
 
 interpret :: FilePath -> Handle -> Handle -> IO ()
 interpret file input output = do
-  code <- hGetContents input
+  code <- IO.hGetContents input
   ast <- execParser file (T.pack code)
   typ <- execTypeInfer ast
   val <- execEval ast
-  hPutStrLn output $ "- : " ++ show typ ++ " = " ++ show val
+  SP.renderIO output $ SP.pretty $ Result.Interpret typ val
 
 parse :: FilePath -> Handle -> Handle -> IO ()
 parse file input output = do
-  code <- hGetContents input
+  code <- IO.hGetContents input
   ast <- execParser file (T.pack code)
-  hPrint output ast
+  SP.renderIO output $ SP.pretty $ Result.Parse ast
 
 typeof :: FilePath -> Handle -> Handle -> IO ()
 typeof file input output = do
-  code <- hGetContents input
+  code <- IO.hGetContents input
   ast <- execParser file (T.pack code)
   typ <- execTypeInfer ast
-  hPutStrLn output $ "- : " ++ show typ
+  SP.renderIO output $ SP.pretty $ Result.TypeInfer ast typ
 
 execParser :: FilePath -> T.Text -> IO Expr
 execParser file txt = do
