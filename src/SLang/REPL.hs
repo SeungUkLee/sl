@@ -14,7 +14,7 @@ import           System.Console.Repline (Cmd, CompleterStyle (Word0),
                                          ExitDecision (Exit), HaskelineT,
                                          Options,
                                          ReplOpts (ReplOpts, banner, command, finaliser, initialiser, multilineCommand, options, prefix, tabComplete),
-                                         WordCompleter, abort, evalReplOpts)
+                                         WordCompleter, abort, evalReplOpts, MultiLine (SingleLine, MultiLine))
 import           System.Exit            (exitSuccess)
 
 import           Control.Exception      (Exception (displayException))
@@ -25,6 +25,7 @@ import qualified SLang.Pretty           as SP
 import qualified SLang.Result           as Result
 import           SLang.TypeInfer        (inferExpr)
 import qualified System.IO              as IO
+
 newtype Repl a = Repl
   { runRepl :: HaskelineT IO a
   } deriving ( Functor
@@ -35,15 +36,19 @@ newtype Repl a = Repl
 
 mainLoop :: IO ()
 mainLoop = evalReplOpts $ ReplOpts
-  { banner           = const (pure "sl> ")
+  { banner           = runRepl . customBanner
   , command          = runRepl . cmd
   , options          = map (second (runRepl .)) opts -- ^ map (\(s, repl) -> (s, unRepl . repl)) opts
   , prefix           = Just ':'
-  , multilineCommand = Nothing
+  , multilineCommand = Just "{"
   , tabComplete      = Word0 completer
   , initialiser      = runRepl ini
   , finaliser        = runRepl final
   }
+
+customBanner :: MultiLine -> Repl String
+customBanner SingleLine = pure "sl> "
+customBanner MultiLine = pure "| "
 
 final :: Repl ExitDecision
 final = do
