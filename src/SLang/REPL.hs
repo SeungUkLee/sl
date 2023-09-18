@@ -10,17 +10,22 @@ import qualified Data.Text              as T
 import           Data.Bifunctor         (second)
 import           Data.List              (isPrefixOf)
 import qualified Data.Text.IO           as TIO
-import           System.Console.Repline (Cmd, CompleterStyle (Word0),
-                                         ExitDecision (Exit), HaskelineT,
+import           System.Console.Repline (Cmd, CompleterStyle (Prefix),
+                                         CompletionFunc, ExitDecision (Exit),
+                                         HaskelineT,
+                                         MultiLine (MultiLine, SingleLine),
                                          Options,
                                          ReplOpts (ReplOpts, banner, command, finaliser, initialiser, multilineCommand, options, prefix, tabComplete),
-                                         WordCompleter, abort, evalReplOpts, MultiLine (SingleLine, MultiLine))
+                                         WordCompleter, abort, evalReplOpts,
+                                         fileCompleter, listCompleter,
+                                         wordCompleter)
 import           System.Exit            (exitSuccess)
 
 import           Control.Exception      (Exception (displayException))
 import           Control.Monad.IO.Class (MonadIO (liftIO))
 import           SLang.Eval             (evalExpr)
 import           SLang.Parser           (parseToExpr)
+import           SLang.Parser.Lexer     (reservedWords)
 import qualified SLang.Pretty           as SP
 import qualified SLang.Result           as Result
 import           SLang.TypeInfer        (inferExpr)
@@ -41,14 +46,14 @@ mainLoop = evalReplOpts $ ReplOpts
   , options          = map (second (runRepl .)) opts -- ^ map (\(s, repl) -> (s, unRepl . repl)) opts
   , prefix           = Just ':'
   , multilineCommand = Just "{"
-  , tabComplete      = Word0 completer
+  , tabComplete      = Prefix (wordCompleter byWord) defaultMatcher
   , initialiser      = runRepl ini
   , finaliser        = runRepl final
   }
 
 customBanner :: MultiLine -> Repl String
 customBanner SingleLine = pure "sl> "
-customBanner MultiLine = pure "| "
+customBanner MultiLine  = pure "| "
 
 final :: Repl ExitDecision
 final = do
@@ -98,10 +103,25 @@ opts =
   , ("help", help)
   ]
 
-completer :: Monad m => WordCompleter m
-completer n = do
-  let cmds = [":type" , ":load" , ":quit" , ":parse" , ":help"]
-  return $ filter (isPrefixOf n) cmds
+byWord :: Monad m => WordCompleter m
+byWord n = do
+  return $ filter (isPrefixOf n) reserved
+
+defaultMatcher :: MonadIO m => [(String, CompletionFunc m)]
+defaultMatcher =
+  [ (":type", listCompleter reserved)
+  , (":load", fileCompleter)
+  , (":quit", listCompleter [])
+  , (":parse", listCompleter reserved)
+  , (":help", listCompleter [])
+  , (":", listCompleter cmds) 
+  ]
+
+reserved :: [String]
+reserved = fmap T.unpack reservedWords
+
+cmds :: [String]
+cmds = [":type" , ":load" , ":quit" , ":parse" , ":help"]
 
 typeof :: Cmd Repl
 typeof code = do

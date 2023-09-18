@@ -8,6 +8,7 @@ module SLang.Parser.Lexer
   , reserved
   , symbol
   , signedInteger
+  , reservedWords
   ) where
 
 import qualified Data.Text                      as T
