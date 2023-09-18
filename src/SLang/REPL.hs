@@ -57,11 +57,14 @@ customBanner MultiLine  = pure "| "
 
 final :: Repl ExitDecision
 final = do
-  liftIO $ TIO.putStrLn "GoodBye!\n"
+  liftIO $ TIO.putStrLn goodByeMsg
   return Exit
 
 ini :: Repl ()
 ini = liftIO $ TIO.putStrLn introMsg
+
+goodByeMsg :: T.Text
+goodByeMsg = "GoodBye!\n"
 
 introMsg :: T.Text
 introMsg = T.unlines
@@ -155,4 +158,6 @@ helpMsg = T.unlines
   ]
 
 quit :: Cmd Repl
-quit _ = liftIO exitSuccess
+quit _ = do
+  liftIO $ TIO.putStrLn goodByeMsg
+  liftIO exitSuccess
