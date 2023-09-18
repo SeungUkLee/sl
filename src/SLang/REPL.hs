@@ -126,11 +126,12 @@ help _ = do
 helpMsg :: T.Text
 helpMsg = T.unlines
   [ "Commands available from the REPL\n"
-  , "   :help                  display this list of commands"
-  , "   :load <file>           load file and interpret"
-  , "   :parse <expr>          parse <expr> and show the AST of <expr>"
-  , "   :quit                  exit REPL"
-  , "   :type <expr>           show the type of <expr>"
+  , "   :{\n ..lines.. <Ctrl-D>     multiline command"
+  , "   :help                       display this list of commands"
+  , "   :load <file>                load file and interpret"
+  , "   :parse <expr>               parse <expr> and show the AST of <expr>"
+  , "   :quit                       exit REPL"
+  , "   :type <expr>                show the type of <expr>"
   ]
 
 quit :: Cmd Repl
