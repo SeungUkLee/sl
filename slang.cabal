@@ -38,6 +38,7 @@ library
       SLang.REPL
       SLang.Result
       SLang.TypeInfer
+      SLang.TypeInfer.Algorithm
       SLang.TypeInfer.Algorithm.M
       SLang.TypeInfer.Error
       SLang.TypeInfer.State

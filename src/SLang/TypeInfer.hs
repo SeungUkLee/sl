@@ -1,16 +1,24 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
 module SLang.TypeInfer
-  ( inferExpr
+  ( -- * re-exports
+    module SLang.TypeInfer.Algorithm
+  , module SLang.TypeInfer.Error
+  , module SLang.TypeInfer.State
+  , module SLang.TypeInfer.Substitution
+  , module SLang.TypeInfer.Type
+  , module SLang.TypeInfer.TypeEnv
+
+  , inferExpr
   ) where
 
 import           Control.Monad.Except         (ExceptT, MonadError, runExceptT)
 import           Control.Monad.Reader         (MonadReader, ReaderT (..))
 import           Control.Monad.State          (MonadState, State, runState)
-import           SLang.Eval.Syntax            (Expr)
+import           SLang.Eval                   (Expr)
 
 
-import           SLang.TypeInfer.Algorithm.M  (mAlgorithm, newTyVar)
+import           SLang.TypeInfer.Algorithm    (mAlgorithm, newTyVar)
 import           SLang.TypeInfer.Error        (TypeError)
 import qualified SLang.TypeInfer.State        as InferState
 import           SLang.TypeInfer.State        (InferState)

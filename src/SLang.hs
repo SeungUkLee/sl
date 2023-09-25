@@ -4,43 +4,49 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module SLang
-  ( main
+  ( -- * re-exports
+    module SLang.Eval
+  , module SLang.Parser
+  , module SLang.Pretty
+  , module SLang.REPL
+  , module SLang.Result
+  , module SLang.TypeInfer
+
+  , main
   , execEval
   , execParser
   , execTypeInfer
   , SLangError (..)
   ) where
 
-import           Control.Exception     (Exception (displayException),
-                                        Handler (Handler),
-                                        SomeException (SomeException), catches,
-                                        throwIO)
-import qualified Data.Text             as T
-import qualified Data.Text.IO          as TIO
-import           Options.Applicative   (CommandFields, Mod, Parser, ParserInfo,
-                                        command, fullDesc, header, help, helper,
-                                        info, long, metavar, optional, progDesc,
-                                        short, strOption, subparser, (<|>))
-import qualified Options.Applicative   as Opt
+import           Control.Exception    (Exception (displayException),
+                                       Handler (Handler),
+                                       SomeException (SomeException), catches,
+                                       throwIO)
+import qualified Data.Text            as T
+import qualified Data.Text.IO         as TIO
+import           Options.Applicative  (CommandFields, Mod, Parser, ParserInfo,
+                                       command, fullDesc, header, help, helper,
+                                       info, long, metavar, optional, progDesc,
+                                       short, strOption, subparser, (<|>))
+import qualified Options.Applicative  as Opt
 
-import           SLang.Eval            (evalExpr)
-import           SLang.Eval.Error      (EvalError)
-import           SLang.Eval.Syntax     (Expr)
-import           SLang.Parser          (ParseError, parseToExpr)
-import           SLang.REPL            (mainLoop)
-import           SLang.TypeInfer       (inferExpr)
-import           SLang.TypeInfer.Error (TypeError)
+import           SLang.Eval           (EvalError, Expr, Value, evalExpr)
+import           SLang.Parser         (ParseError, parseToExpr)
+import           SLang.Pretty
+import           SLang.REPL           (mainLoop)
+import           SLang.Result
+import           SLang.TypeInfer      (TypeError, inferExpr)
 
-import           Data.Maybe            (fromMaybe)
-import           SLang.Eval.Domain     (Value)
-import qualified SLang.Pretty          as SP
-import qualified SLang.Result          as Result
-import           SLang.TypeInfer.Type  (Type)
-import           System.Directory      (doesFileExist)
-import           System.Exit           (ExitCode (ExitFailure, ExitSuccess),
-                                        exitFailure)
-import qualified System.IO             as IO
-import           System.IO             (Handle, IOMode (ReadMode, WriteMode))
+import           Data.Maybe           (fromMaybe)
+import qualified SLang.Pretty         as SP
+import qualified SLang.Result         as Result
+import           SLang.TypeInfer.Type (Type)
+import           System.Directory     (doesFileExist)
+import           System.Exit          (ExitCode (ExitFailure, ExitSuccess),
+                                       exitFailure)
+import qualified System.IO            as IO
+import           System.IO            (Handle, IOMode (ReadMode, WriteMode))
 
 data SLangError
   = ParseError ParseError
@@ -54,10 +60,10 @@ instance Exception SLangError where
   displayException(TypeError e)   = displayException e
 
 data Options
-  = Interpret Input Output
-  | Parse Input Output
-  | TypeOf Input Output
-  | REPL
+  = InterpretOpt Input Output
+  | ParseOpt Input Output
+  | TypeOfOpt Input Output
+  | REPLOpt
   deriving Show
 
 data Input
@@ -77,10 +83,10 @@ main = do
   catches (do
     options <- optParse
     case options of
-      Interpret input output -> actionWithIOHandle interpret input output
-      Parse input output     -> actionWithIOHandle parse input output
-      TypeOf input output    -> actionWithIOHandle typeof input output
-      REPL                   -> mainLoop
+      InterpretOpt input output -> actionWithIOHandle interpret input output
+      ParseOpt input output     -> actionWithIOHandle parse input output
+      TypeOfOpt input output    -> actionWithIOHandle typeof input output
+      REPLOpt                   -> mainLoop
     )
     [ Handler $ \case
         ParseError e -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
@@ -146,7 +152,7 @@ pREPLInfo = info
   (progDesc "Enter a REPL for SLang")
 
 pInterpret :: Parser Options
-pInterpret = Interpret <$> pInput <*> pOutput
+pInterpret = InterpretOpt <$> pInput <*> pOutput
 
 pInput :: Parser Input
 pInput = fromMaybe Stdin <$> optional pInputFile
@@ -175,14 +181,14 @@ pOutputFile = fmap OutputFile parser
       )
 
 pParsing :: Parser Options
-pParsing = Parse <$> pInput <*> pOutput
+pParsing = ParseOpt <$> pInput <*> pOutput
 
 pTypeOf :: Parser Options
-pTypeOf = TypeOf <$> pInput <*> pOutput
+pTypeOf = TypeOfOpt <$> pInput <*> pOutput
 
 pREPL :: Parser Options
 pREPL = do
-  pure REPL
+  pure REPLOpt
 
 pInterpretCommand :: Mod CommandFields Options
 pInterpretCommand = command "interpret" pInterpretInfo

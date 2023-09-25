@@ -1,8 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module SLang.Parser
-  ( parseToExpr
-  , ParseError
+  ( -- * re-exports
+    module SLang.Parser.Lexer
+  , module SLang.Parser.Common
+  , module SLang.Parser.Error
+
+  , parseToExpr
   ) where
 
 import           Text.Megaparsec                (MonadParsec (eof, try), choice,
@@ -11,12 +15,13 @@ import           Text.Megaparsec                (MonadParsec (eof, try), choice,
 import           Control.Monad.Combinators.Expr (makeExprParser)
 
 import qualified Data.Text                      as T
-import           SLang.Eval.Syntax              (Const (..), Expr (..),
+import           SLang.Eval                     (Const (..), Expr (..),
                                                  LetBind (..))
 import           SLang.Parser.Common            (Parser)
 import           SLang.Parser.Error             (ParseError (..))
 import           SLang.Parser.Lexer             (identifier, operatorTable,
-                                                 parens, reserved, sc,
+                                                 parens, reserved,
+                                                 reservedWords, sc,
                                                  signedInteger, symbol)
 
 pTerm :: Parser Expr

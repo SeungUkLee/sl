@@ -4,8 +4,7 @@ module SLang.Result (Result (..)) where
 
 import           Prettyprinter        ((<+>))
 
-import           SLang.Eval.Domain    (Value)
-import           SLang.Eval.Syntax    (Expr)
+import           SLang.Eval           (Expr, Value)
 import qualified SLang.Pretty         as SP
 import           SLang.Pretty         (Pretty (..))
 import           SLang.TypeInfer.Type (Type)

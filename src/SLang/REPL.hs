@@ -24,8 +24,7 @@ import           System.Exit            (exitSuccess)
 import           Control.Exception      (Exception (displayException))
 import           Control.Monad.IO.Class (MonadIO (liftIO))
 import           SLang.Eval             (evalExpr)
-import           SLang.Parser           (parseToExpr)
-import           SLang.Parser.Lexer     (reservedWords)
+import           SLang.Parser           (parseToExpr, reservedWords)
 import qualified SLang.Pretty           as SP
 import qualified SLang.Result           as Result
 import           SLang.TypeInfer        (inferExpr)
@@ -117,7 +116,7 @@ defaultMatcher =
   , (":quit", listCompleter [])
   , (":parse", listCompleter reserved)
   , (":help", listCompleter [])
-  , (":", listCompleter cmds) 
+  , (":", listCompleter cmds)
   ]
 
 reserved :: [String]

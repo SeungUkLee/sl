@@ -2,7 +2,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module SLang.Eval
-  ( evalExpr
+  ( -- * re-exports
+    module SLang.Eval.Domain
+  , module SLang.Eval.Error
+  , module SLang.Eval.Syntax
+
+  , evalExpr
   ) where
 
 import           Control.Monad.Except (Except, MonadError (throwError),

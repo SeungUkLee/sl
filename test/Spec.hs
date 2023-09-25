@@ -14,10 +14,9 @@ import           Control.Exception          (Exception (displayException),
                                              catches)
 import           Data.String
 import qualified Data.Text.IO               as TIO
-import           SLang                      (SLangError (..), execEval,
-                                             execParser, execTypeInfer)
-import qualified SLang.Pretty               as SP
-import qualified SLang.Result               as Result
+import           SLang                      (Result (Interpret),
+                                             SLangError (..), execEval,
+                                             execParser, execTypeInfer, pretty)
 
 main :: IO ()
 main = do
@@ -40,7 +39,7 @@ mkGoldenTest path = do
       ast <- execParser path script
       typ <- execTypeInfer ast
       val <- execEval ast
-      return $ show $ SP.pretty $ Result.Interpret typ val
+      return $ show $ pretty $ Interpret typ val
       )
       [ Handler $ \case
           ParseError e -> return $ displayException e
