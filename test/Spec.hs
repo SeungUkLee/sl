@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 
 import qualified Data.ByteString.Lazy.Char8 as BS
 import           Data.Functor               ((<&>))
@@ -12,12 +13,31 @@ import           Control.Exception          (Exception (displayException),
                                              Handler (Handler),
                                              SomeException (SomeException),
                                              catches)
+import           Control.Monad.Catch        (MonadThrow)
+import           Control.Monad.IO.Class     (MonadIO)
 import           Data.String
 import qualified Data.Text.IO               as TIO
-import           SLang                      (SLangError (..), execEval,
-                                             execParser, execTypeInfer)
-import qualified SLang.Pretty               as SP
-import qualified SLang.Result               as Result
+import           SLang                      (SLangError (..), SLangEval (..),
+                                             SLangParser (..),
+                                             SLangTypeInfer (..), evaluate_,
+                                             infer_, interpret, parse_, pretty)
+
+newtype SLangTest a = SLangTest
+  { runSLangTest :: IO a
+  } deriving ( Functor
+             , Applicative
+             , Monad
+             , MonadIO
+             , MonadThrow
+             )
+instance SLangEval SLangTest where
+  evaluate = evaluate_
+
+instance SLangParser SLangTest where
+  parse = parse_
+
+instance SLangTypeInfer SLangTest where
+  infer = infer_
 
 main :: IO ()
 main = do
@@ -37,14 +57,12 @@ mkGoldenTest path = do
   where
     action = catches (do
       script <- TIO.readFile path
-      ast <- execParser path script
-      typ <- execTypeInfer ast
-      val <- execEval ast
-      return $ show $ SP.pretty $ Result.Interpret typ val
+      res <- runSLangTest $ interpret path script
+      return $ show $ pretty res
       )
       [ Handler $ \case
-          ParseError e -> return $ displayException e
-          TypeError e -> return $ displayException e
-          EvalError e -> return $ displayException e
+          ParserError e -> return $ displayException e
+          TypeInferError e -> return $ displayException e
+          EvaluatorError e -> return $ displayException e
       , Handler $ \(SomeException e) -> return $ displayException e
       ]

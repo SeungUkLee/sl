@@ -27,18 +27,27 @@ library
   exposed-modules:
       SLang
       SLang.Eval
+      SLang.Eval.Class
       SLang.Eval.Domain
       SLang.Eval.Error
       SLang.Eval.Syntax
+      SLang.Interative
+      SLang.Interative.Class
+      SLang.Interative.Cli
+      SLang.Interative.Cli.OptParse
+      SLang.Interative.Command
+      SLang.Interative.Repl
+      SLang.Interative.Result
       SLang.Parser
+      SLang.Parser.Class
       SLang.Parser.Common
       SLang.Parser.Error
       SLang.Parser.Lexer
       SLang.Pretty
-      SLang.REPL
-      SLang.Result
       SLang.TypeInfer
+      SLang.TypeInfer.Algorithm
       SLang.TypeInfer.Algorithm.M
+      SLang.TypeInfer.Class
       SLang.TypeInfer.Error
       SLang.TypeInfer.State
       SLang.TypeInfer.Substitution
@@ -53,6 +62,7 @@ library
       base >=4.7 && <5
     , containers
     , directory
+    , exceptions
     , megaparsec
     , mtl
     , optparse-applicative
@@ -73,6 +83,7 @@ executable slang-exe
       base >=4.7 && <5
     , containers
     , directory
+    , exceptions
     , megaparsec
     , mtl
     , optparse-applicative
@@ -96,6 +107,7 @@ test-suite slang-test
     , bytestring
     , containers
     , directory
+    , exceptions
     , filepath
     , megaparsec
     , mtl

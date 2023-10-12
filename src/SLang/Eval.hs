@@ -1,31 +1,33 @@
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module SLang.Eval
-  ( evalExpr
+  ( -- * re-exports
+    module SLang.Eval.Domain
+  , module SLang.Eval.Error
+  , module SLang.Eval.Syntax
+
+  , runSLangEval
+
+  , SLangEval (..)
   ) where
 
-import           Control.Monad.Except (Except, MonadError (throwError),
-                                       runExcept)
-import           Control.Monad.Reader (MonadReader (ask, local), ReaderT (..))
+import           Control.Monad.Except (MonadError (throwError), runExceptT)
+import           Control.Monad.Reader (MonadReader (ask, local),
+                                       ReaderT (runReaderT))
 
+import           SLang.Eval.Class     (SLangEval (..))
 import qualified SLang.Eval.Domain    as TermEnv
 import           SLang.Eval.Domain    (Closure, FuncExpr (..), TermEnv,
-                                       Value (..))
+                                       Value (..), empty)
 import           SLang.Eval.Error     (EvalError (..))
 import           SLang.Eval.Syntax    (Bop (..), Const (..), Expr (..),
                                        LetBind (..))
 
-newtype Eval a = Eval
-  { runEval :: ReaderT TermEnv (Except EvalError) a
-  } deriving ( Functor
-             , Applicative
-             , Monad
-             , MonadError EvalError
-             , MonadReader TermEnv
-             )
+runSLangEval :: Monad m => Expr -> m (Either EvalError Value)
+runSLangEval expr = runExceptT $ runReaderT (eval expr) empty
 
-eval :: Expr -> Eval Value
+eval :: (MonadReader TermEnv m, MonadError EvalError m) => Expr -> m Value
 eval (EConst (CInt n)) = return $ VInt n
 eval (EConst (CBool b)) = return $ VBool b
 eval (EVar name) = TermEnv.lookup name
@@ -70,28 +72,25 @@ eval (EOp bop e1 e2) = do
   v2 <- eval e2
   binOp bop v1 v2
 
-binOp :: Bop -> Value -> Value -> Eval Value
+binOp :: (MonadError EvalError m) => Bop -> Value -> Value -> m Value
 binOp Add v1 v2   = numOp (+) v1 v2
 binOp Sub v1 v2   = numOp (-) v1 v2
 binOp Mul v1 v2   = numOp (*) v1 v2
 binOp Equal v1 v2 = eqOp v1 v2
 
-numOp :: (Integer -> Integer -> Integer) -> Value -> Value -> Eval Value
+numOp :: (MonadError EvalError m) => (Integer -> Integer -> Integer) -> Value -> Value -> m Value
 numOp op (VInt v1) (VInt v2) = return $ VInt $ op v1 v2
 numOp _ _ _                  = throwError $ TypeMissmatch "arithmetic operations expected number"
 
-eqOp :: Value -> Value -> Eval Value
+eqOp :: (MonadError EvalError m) => Value -> Value -> m Value
 eqOp (VInt a) (VInt b)   = return $ VBool $ a == b
 eqOp (VBool a) (VBool b) = return $ VBool $ a == b
 eqOp _ _                 = throwError $ TypeMissmatch "equal operaions expected number or boolean"
 
-getClosure :: Value -> Eval Closure
+getClosure :: (MonadError EvalError m) => Value -> m Closure
 getClosure (VClosure c) = return c
 getClosure _            = throwError $ TypeMissmatch "this is not a function"
 
-getBool :: Value -> Eval Bool
+getBool :: (MonadError EvalError m) => Value -> m Bool
 getBool (VBool b) = return b
 getBool _         = throwError $ TypeMissmatch "this is not a bool"
-
-evalExpr :: Expr -> Either EvalError Value
-evalExpr e = runExcept $ runReaderT (runEval $ eval e) TermEnv.empty

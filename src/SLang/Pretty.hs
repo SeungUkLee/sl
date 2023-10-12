@@ -4,9 +4,12 @@ module SLang.Pretty
   ( parensIf
   , renderIO
   , toText
+  , prettyprint
+
   , Pretty (..)
   ) where
 
+import           Control.Monad.IO.Class    (MonadIO (liftIO))
 import qualified Data.Text                 as T
 import           Prettyprinter             (Doc)
 import qualified Prettyprinter             as PP
@@ -34,3 +37,6 @@ renderIO handle doc = PP.Text.renderIO handle $ PP.layoutPretty PP.defaultLayout
 
 toText :: Doc ann -> T.Text
 toText doc = PP.Text.renderStrict $ PP.layoutPretty PP.defaultLayoutOptions doc
+
+prettyprint :: (MonadIO m) => (Pretty a) => Handle -> a -> m ()
+prettyprint o a = liftIO $ renderIO o $ pretty a

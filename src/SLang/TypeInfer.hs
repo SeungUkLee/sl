@@ -1,41 +1,40 @@
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module SLang.TypeInfer
-  ( inferExpr
+  ( -- * re-exports
+    module SLang.TypeInfer.Algorithm
+  , module SLang.TypeInfer.Error
+  , module SLang.TypeInfer.State
+  , module SLang.TypeInfer.Substitution
+  , module SLang.TypeInfer.Type
+  , module SLang.TypeInfer.TypeEnv
+
+  , runSLangTypeInfer
+
+  , SLangTypeInfer (..)
   ) where
 
-import           Control.Monad.Except         (ExceptT, MonadError, runExceptT)
-import           Control.Monad.Reader         (MonadReader, ReaderT (..))
-import           Control.Monad.State          (MonadState, State, runState)
-import           SLang.Eval.Syntax            (Expr)
+import           Control.Monad.Except         (MonadError, runExceptT)
+import           Control.Monad.Reader         (MonadReader,
+                                               ReaderT (runReaderT))
+import           Control.Monad.State          (MonadState, StateT (runStateT))
+import           SLang.Eval                   (Expr)
 
 
-import           SLang.TypeInfer.Algorithm.M  (mAlgorithm, newTyVar)
+import           SLang.TypeInfer.Algorithm    (mAlgorithm, newTyVar)
+import           SLang.TypeInfer.Class        (SLangTypeInfer (..))
 import           SLang.TypeInfer.Error        (TypeError)
-import qualified SLang.TypeInfer.State        as InferState
+import qualified SLang.TypeInfer.State        as SState
 import           SLang.TypeInfer.State        (InferState)
 import           SLang.TypeInfer.Substitution (Substitutable (apply))
 import           SLang.TypeInfer.Type         (Type)
-import qualified SLang.TypeInfer.TypeEnv      as TypeEnv
-import           SLang.TypeInfer.TypeEnv      (TypeEnv)
+import           SLang.TypeInfer.TypeEnv      (TypeEnv, empty)
 
-newtype TypeInfer a = TypeInfer
-  { runTypeInfer :: ReaderT TypeEnv (ExceptT TypeError (State InferState)) a
-  } deriving ( Functor
-             , Applicative
-             , Monad
-             , MonadError TypeError
-             , MonadState InferState
-             , MonadReader TypeEnv
-             )
+runSLangTypeInfer :: (Monad m) => Expr -> m (Either TypeError (Type, InferState))
+runSLangTypeInfer expr = runExceptT $ runStateT (runReaderT (inferExpr expr) empty) SState.empty
 
-runTypeInfer' :: TypeInfer a -> (Either TypeError a, InferState)
-runTypeInfer' t = runState (runExceptT $ runReaderT (runTypeInfer t) TypeEnv.empty) InferState.empty
-
-inferExpr :: Expr -> Either TypeError Type
-inferExpr expr = fst $ runTypeInfer' infer
-  where
-    infer = do
-      a <- newTyVar
-      subst <- mAlgorithm expr a
-      return $ apply subst a
+inferExpr :: (MonadState InferState m, MonadError TypeError m, MonadReader TypeEnv m) => Expr -> m Type
+inferExpr expr = do
+  a <- newTyVar
+  subst <- mAlgorithm expr a
+  return $ apply subst a

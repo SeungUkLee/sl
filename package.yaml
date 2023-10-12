@@ -30,6 +30,7 @@ dependencies:
 - prettyprinter
 - optparse-applicative
 - directory
+- exceptions
 
 ghc-options:
 - -Wall

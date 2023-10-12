@@ -1,250 +1,132 @@
-{-# LANGUAGE ApplicativeDo       #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 module SLang
-  ( main
-  , execEval
-  , execParser
-  , execTypeInfer
+  ( -- * re-exports
+    module SLang.Eval
+  , module SLang.Parser
+  , module SLang.Interative
+  , module SLang.TypeInfer
+  , module SLang.Pretty
+
+  , main
+  , evaluate_
+  , infer_
+  , parse_
+
   , SLangError (..)
   ) where
 
-import           Control.Exception     (Exception (displayException),
-                                        Handler (Handler),
-                                        SomeException (SomeException), catches,
-                                        throwIO)
-import qualified Data.Text             as T
-import qualified Data.Text.IO          as TIO
-import           Options.Applicative   (CommandFields, Mod, Parser, ParserInfo,
-                                        command, fullDesc, header, help, helper,
-                                        info, long, metavar, optional, progDesc,
-                                        short, strOption, subparser, (<|>))
-import qualified Options.Applicative   as Opt
+import           Control.Monad.Catch    (Exception (displayException),
+                                         Handler (Handler), MonadCatch,
+                                         MonadMask, MonadThrow (throwM),
+                                         SomeException (SomeException), catches)
+import           Control.Monad.IO.Class (MonadIO (liftIO))
+import qualified Data.Text              as T
+import qualified Data.Text.IO           as TIO
 
-import           SLang.Eval            (evalExpr)
-import           SLang.Eval.Error      (EvalError)
-import           SLang.Eval.Syntax     (Expr)
-import           SLang.Parser          (ParseError, parseToExpr)
-import           SLang.REPL            (mainLoop)
-import           SLang.TypeInfer       (inferExpr)
-import           SLang.TypeInfer.Error (TypeError)
+import           SLang.Eval             (EvalError, Expr, SLangEval (..), Value,
+                                         runSLangEval)
+import           SLang.Interative
+import           SLang.Parser           (ParseError, SLangParser (..),
+                                         runSLangParser)
+import           SLang.Pretty
+import           SLang.TypeInfer        (SLangTypeInfer (..), Type, TypeError,
+                                         runSLangTypeInfer)
+import           System.Console.Repline (HaskelineT)
+import           System.Exit            (ExitCode (ExitFailure, ExitSuccess))
+import qualified System.IO              as IO
 
-import           Data.Maybe            (fromMaybe)
-import           SLang.Eval.Domain     (Value)
-import qualified SLang.Pretty          as SP
-import qualified SLang.Result          as Result
-import           SLang.TypeInfer.Type  (Type)
-import           System.Directory      (doesFileExist)
-import           System.Exit           (ExitCode (ExitFailure, ExitSuccess),
-                                        exitFailure)
-import qualified System.IO             as IO
-import           System.IO             (Handle, IOMode (ReadMode, WriteMode))
+newtype SLangApp a = SLangApp
+  { runSLangApp :: IO a
+  } deriving ( Monad
+             , Functor
+             , Applicative
+             , MonadIO
+             , MonadMask
+             , MonadCatch
+             , MonadThrow
+             )
 
 data SLangError
-  = ParseError ParseError
-  | EvalError EvalError
-  | TypeError TypeError
+  = ParserError ParseError
+  | EvaluatorError EvalError
+  | TypeInferError TypeError
   deriving Show
 
 instance Exception SLangError where
-  displayException (ParseError e) = displayException e
-  displayException (EvalError e)  = displayException e
-  displayException(TypeError e)   = displayException e
+  displayException (ParserError e)    = displayException e
+  displayException (EvaluatorError e) = displayException e
+  displayException (TypeInferError e) = displayException e
 
-data Options
-  = Interpret Input Output
-  | Parse Input Output
-  | TypeOf Input Output
-  | REPL
-  deriving Show
-
-data Input
-  = Stdin
-  | InputFile FilePath
-  deriving Show
-
-data Output
-  = Stdout
-  | OutputFile FilePath
-  deriving Show
-
-
--- | Command line entry point
+-- | Command line entry points
 main :: IO ()
-main = do
-  catches (do
-    options <- optParse
-    case options of
-      Interpret input output -> actionWithIOHandle interpret input output
-      Parse input output     -> actionWithIOHandle parse input output
-      TypeOf input output    -> actionWithIOHandle typeof input output
-      REPL                   -> mainLoop
-    )
-    [ Handler $ \case
-        ParseError e -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
-        TypeError e -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
-        EvalError e -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
-    , Handler $ \case
-        ExitSuccess -> return ()
-        ExitFailure _ -> return ()
-    , Handler $ \(SomeException e) -> TIO.hPutStrLn IO.stderr $ T.pack (displayException e)
-    ]
+main = catches (runSLangApp slang) handlers
 
-actionWithIOHandle :: (FilePath -> Handle -> Handle -> IO a) -> Input -> Output -> IO a
-actionWithIOHandle action input output =
-  withInputHandle (\file -> flip withOutputHandle output . action file) input
+slang :: (Interative m, SLangParser m, SLangEval m, SLangTypeInfer m) => m ()
+slang = do
+  options <- liftIO optParse
+  case options of
+    InterpretOpt i o -> cli interpret i o
+    ParseOpt i o     -> cli parsing i o
+    TypeOfOpt i o    -> cli typeinfer i o
+    REPLOpt          -> repl
 
-withInputHandle :: (FilePath -> Handle -> IO a) -> Input ->  IO a
-withInputHandle action input =
-  case input of
-    Stdin          -> action "(input)" IO.stdin
-    InputFile file -> IO.withFile file ReadMode $ action file
-
-withOutputHandle :: (Handle -> IO a) -> Output -> IO a
-withOutputHandle action output =
-  case output of
-    Stdout -> action IO.stdout
-    OutputFile file -> do
-      exists <- doesFileExist file
-      shouldOpenFile <- if exists then confirm else pure True
-      if shouldOpenFile
-        then IO.withFile file WriteMode action
-        else exitFailure
-
-confirm :: IO Bool
-confirm = do
-  TIO.putStrLn "This file alredy exists. Do you want to overwrite it? (y/n)"
-  answer <- getLine
-  case answer of
-    "y" -> pure True
-    "n" -> pure False
-    _   -> TIO.putStrLn "Please use 'y' or 'n'" *> confirm
-
-pOptions :: Parser Options
-pOptions = subparser $ pInterpretCommand <> pParsingCommand <> pTypeOfCommand <> pREPLCommand
-
-pInterpretInfo :: ParserInfo Options
-pInterpretInfo = info
-  (helper <*> pInterpret)
-  (progDesc "Interpret a SLang file")
-
-pParsingInfo :: ParserInfo Options
-pParsingInfo = info
-  (helper <*> pParsing)
-  (progDesc "Parse a SLang file")
-
-pTypeOfInfo :: ParserInfo Options
-pTypeOfInfo = info
-  (helper <*> pTypeOf)
-  (progDesc "Type Inference a SLang file")
-
-pREPLInfo :: ParserInfo Options
-pREPLInfo = info
-  (helper <*> pREPL)
-  (progDesc "Enter a REPL for SLang")
-
-pInterpret :: Parser Options
-pInterpret = Interpret <$> pInput <*> pOutput
-
-pInput :: Parser Input
-pInput = fromMaybe Stdin <$> optional pInputFile
-
-pInputFile :: Parser Input
-pInputFile = fmap InputFile parser
+handlers :: [Handler IO ()]
+handlers =
+  [ Handler $ \case
+     ParserError e -> printSLangException e
+     TypeInferError e -> printSLangException e
+     EvaluatorError e -> printSLangException e
+  , Handler $ \case
+      ExitSuccess -> return ()
+      ExitFailure  _ -> return ()
+  , Handler $ \(SomeException e) -> printSLangException e
+  ]
   where
-    parser = strOption
-      ( long "input"
-      <> short 'i'
-      <> metavar "FILE"
-      <> help "Input file"
-      )
+    printSLangException e = TIO.hPutStrLn IO.stderr $ T.pack $ displayException e
 
-pOutput :: Parser Output
-pOutput = fromMaybe Stdout <$> optional pOutputFile
+instance Interative SLangApp where
+  cli = executeCli
+  repl = loop
 
-pOutputFile :: Parser Output
-pOutputFile = fmap OutputFile parser
-  where
-    parser = strOption
-      ( long "output"
-      <> short 'o'
-      <> metavar "FILE"
-      <> help "Output file"
-      )
+instance SLangEval SLangApp where
+  evaluate = evaluate_
 
-pParsing :: Parser Options
-pParsing = Parse <$> pInput <*> pOutput
+instance SLangParser SLangApp where
+  parse = parse_
 
-pTypeOf :: Parser Options
-pTypeOf = TypeOf <$> pInput <*> pOutput
+instance SLangTypeInfer SLangApp where
+  infer = infer_
 
-pREPL :: Parser Options
-pREPL = do
-  pure REPL
+instance SLangEval (HaskelineT SLangApp) where
+  evaluate = evaluate_
 
-pInterpretCommand :: Mod CommandFields Options
-pInterpretCommand = command "interpret" pInterpretInfo
+instance SLangParser (HaskelineT SLangApp) where
+  parse = parse_
 
-pParsingCommand :: Mod CommandFields Options
-pParsingCommand = command "parse" pParsingInfo
+instance SLangTypeInfer (HaskelineT SLangApp) where
+  infer = infer_
 
-pTypeOfCommand :: Mod CommandFields Options
-pTypeOfCommand = command "type" pTypeOfInfo
+evaluate_ :: (MonadThrow m) => Expr -> m Value
+evaluate_ expr = do
+  eitherResult <- runSLangEval expr
+  case eitherResult of
+    Left err -> throwM $ EvaluatorError err
+    Right v  -> return v
 
-pREPLCommand :: Mod CommandFields Options
-pREPLCommand = command "repl" pREPLInfo
+infer_ :: (MonadThrow m) => Expr -> m Type
+infer_ expr = do
+  eitherResult <- runSLangTypeInfer expr
+  case eitherResult of
+    Left err       -> throwM $ TypeInferError err
+    Right (typ, _) -> return typ
 
-pOptsInfo :: ParserInfo Options
-pOptsInfo = info
-  (helper <*> pOptions <|> pREPL)
-  (fullDesc
-  <> header "SLang - a simple language"
-  <> progDesc "Command line for SLang"
-  )
-
-optParse :: IO Options
-optParse = Opt.execParser pOptsInfo
-
-interpret :: FilePath -> Handle -> Handle -> IO ()
-interpret file input output = do
-  code <- IO.hGetContents input
-  ast <- execParser file (T.pack code)
-  typ <- execTypeInfer ast
-  val <- execEval ast
-  SP.renderIO output $ SP.pretty $ Result.Interpret typ val
-
-parse :: FilePath -> Handle -> Handle -> IO ()
-parse file input output = do
-  code <- IO.hGetContents input
-  ast <- execParser file (T.pack code)
-  SP.renderIO output $ SP.pretty $ Result.Parse ast
-
-typeof :: FilePath -> Handle -> Handle -> IO ()
-typeof file input output = do
-  code <- IO.hGetContents input
-  ast <- execParser file (T.pack code)
-  typ <- execTypeInfer ast
-  SP.renderIO output $ SP.pretty $ Result.TypeInfer ast typ
-
-execParser :: FilePath -> T.Text -> IO Expr
-execParser file txt = do
-  let expr = parseToExpr file txt
-  case expr of
-    Left e  -> throwIO $ ParseError e
-    Right v -> return v
-
-execEval :: Expr -> IO Value
-execEval expr = do
-  let value = evalExpr expr
-  case value of
-    Left e  -> throwIO $ EvalError e
-    Right v -> return v
-
-execTypeInfer :: Expr -> IO Type
-execTypeInfer expr = do
-  let typ = inferExpr expr
-  case typ of
-    Left e  -> throwIO $ TypeError e
-    Right v -> return v
+parse_ :: (MonadThrow m) => FilePath -> T.Text -> m Expr
+parse_ file txt = do
+  eitherResult <- runSLangParser file txt
+  case eitherResult of
+    Left err   -> throwM $ ParserError err
+    Right expr -> return expr
