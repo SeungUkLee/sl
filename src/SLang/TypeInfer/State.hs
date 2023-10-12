@@ -1,4 +1,4 @@
-module SLang.TypeInfer.State 
+module SLang.TypeInfer.State
   ( InferState (count)
   , empty
   ) where

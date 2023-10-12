@@ -1,12 +1,14 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module SLang.Parser
   ( -- * re-exports
     module SLang.Parser.Lexer
-  , module SLang.Parser.Common
   , module SLang.Parser.Error
+  , module SLang.Parser.Class
 
-  , parseToExpr
+  , runSLangParser
+
   ) where
 
 import           Text.Megaparsec                (MonadParsec (eof, try), choice,
@@ -14,15 +16,24 @@ import           Text.Megaparsec                (MonadParsec (eof, try), choice,
 
 import           Control.Monad.Combinators.Expr (makeExprParser)
 
+import           Control.Monad.Except           (MonadError (throwError),
+                                                 runExceptT)
 import qualified Data.Text                      as T
 import           SLang.Eval                     (Const (..), Expr (..),
                                                  LetBind (..))
+import           SLang.Parser.Class             (SLangParser (..))
 import           SLang.Parser.Common            (Parser)
 import           SLang.Parser.Error             (ParseError (..))
 import           SLang.Parser.Lexer             (identifier, operatorTable,
                                                  parens, reserved,
                                                  reservedWords, sc,
                                                  signedInteger, symbol)
+
+runSLangParser :: (Monad m) => FilePath -> T.Text -> m (Either ParseError Expr)
+runSLangParser file txt = runExceptT $
+  case runParser (sc *> pExpr <* eof) file (T.strip txt) of
+    Left e     -> throwError $ ParseError e
+    Right expr -> return expr
 
 pTerm :: Parser Expr
 pTerm = choice
@@ -98,8 +109,3 @@ pFunc = do
   _ <- symbol "->"
   body <- pExpr
   return (foldr EAbs body args)
-
-parseToExpr :: FilePath -> T.Text -> Either ParseError Expr
-parseToExpr file txt = case runParser (sc *> pExpr <* eof) file (T.strip txt) of
-  Left e     -> Left $ ParseError e
-  Right expr -> Right expr
