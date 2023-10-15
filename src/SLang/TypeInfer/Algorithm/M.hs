@@ -2,72 +2,24 @@
 
 module SLang.TypeInfer.Algorithm.M
   ( mAlgorithm
-  , newTyVar
   ) where
 
-import           Control.Monad.Except         (MonadError (throwError),
-                                               replicateM)
-import           Control.Monad.Reader         (MonadReader (ask, local))
-import           Control.Monad.State          (MonadState (get, put))
-import qualified Data.Set                     as Set
-import qualified Data.Text                    as T
+import           Control.Monad.Except             (MonadError)
+import           Control.Monad.Reader             (MonadReader (ask, local))
+import           Control.Monad.State              (MonadState)
 
-import           SLang.Eval.Syntax            (Bop (..), Const (..), Expr (..),
-                                               LetBind (..))
-import           SLang.TypeInfer.Error        (TypeError (UnificationError))
-import           SLang.TypeInfer.State        (InferState (..))
-import qualified SLang.TypeInfer.Substitution as Subst
-import           SLang.TypeInfer.Substitution (Subst,
-                                               Substitutable (apply, ftv), (@@))
-import           SLang.TypeInfer.Type         (Scheme (..), TVar (..),
-                                               Type (..))
-import qualified SLang.TypeInfer.TypeEnv      as TypeEnv
-import           SLang.TypeInfer.TypeEnv      (TypeEnv)
-
-instantiation
-  :: (MonadError TypeError m , MonadReader TypeEnv m , MonadState InferState m)
-  => Scheme
-  -> m Type
-instantiation (Forall vars t) = do
-  nvars <- mapM (const newTyVar) vars
-  let s = Subst.fromList (zip vars nvars)
-  return $ apply s t
-
-generalization :: TypeEnv -> Type -> Scheme
-generalization env t  = Forall as t
-  where as = Set.toList $ ftv t `Set.difference` ftv env
-
-unify
-  :: (MonadError TypeError m)
-  => Type
-  -> Type
-  -> Expr
-  -> m Subst
-unify a b _ | a == b = return Subst.empty
-unify (TVar name) t _ | not (checkOccurs name t) = return $ Subst.make name t
-unify t (TVar name) _ | not (checkOccurs name t) = return $ Subst.make name t
-unify (TFun t1 t2) (TFun t1' t2') expr = do
-  s <- unify t1 t1' expr
-  s' <- unify (apply s t2) (apply s t2') expr
-  return $ s' @@ s
-unify received expected expr = throwError $ UnificationError received expected expr
-
-checkOccurs :: TVar -> Type -> Bool
-checkOccurs x (TVar name)  = x == name
-checkOccurs x (TFun t1 t2) = checkOccurs x t1 || checkOccurs x t2
-checkOccurs _ TInt         = False
-checkOccurs _ TBool        = False
-
-newTyVar
-  :: (MonadReader TypeEnv m, MonadState InferState m)
-  => m Type
-newTyVar = do
-  s <- get
-  put s{count = count s + 1}
-  return $ TVar $ TV (letters !! count s)
-
-letters :: [T.Text]
-letters = fmap T.pack $ [1..] >>= flip replicateM ['a'..'z']
+import           SLang.Eval.Syntax                (Bop (..), Const (..),
+                                                   Expr (..), LetBind (..))
+import           SLang.TypeInfer.Algorithm.Common (generalization,
+                                                   instantiation, newTyVar,
+                                                   unify)
+import           SLang.TypeInfer.Error            (TypeError (..))
+import           SLang.TypeInfer.State            (InferState (..))
+import           SLang.TypeInfer.Substitution     (Subst, Substitutable (..),
+                                                   (@@))
+import           SLang.TypeInfer.Type             (Scheme (..), Type (..))
+import qualified SLang.TypeInfer.TypeEnv          as TypeEnv
+import           SLang.TypeInfer.TypeEnv          (TypeEnv)
 
 mAlgorithm
   :: (MonadReader TypeEnv m, MonadState InferState m, MonadError TypeError m)
@@ -120,9 +72,8 @@ mAlgorithm expr expected = case expr of
 
     let typescheme = generalization tyenv' a'
         tyenv'' = TypeEnv.extend tyenv' (name, typescheme)
-        expected'' = apply s expected'
 
-    s' <- local (const tyenv'') (mAlgorithm ebody expected'')
+    s' <- local (const tyenv'') (mAlgorithm ebody expected')
 
     return $ s' @@ s
 

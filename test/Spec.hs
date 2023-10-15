@@ -16,11 +16,14 @@ import           Control.Exception          (Exception (displayException),
 import           Control.Monad.Catch        (MonadThrow)
 import           Control.Monad.IO.Class     (MonadIO)
 import           Data.String
+import           Data.Text                  (Text)
 import qualified Data.Text.IO               as TIO
-import           SLang                      (SLangError (..), SLangEval (..),
-                                             SLangParser (..),
-                                             SLangTypeInfer (..), evaluate_,
-                                             infer_, interpret, parse_, pretty)
+import           SLang                      (Pretty, SLangError (..),
+                                             SLangEval (..), SLangParser (..),
+                                             SLangTypeInfer (..),
+                                             TIAlgorithm (..), evaluate_,
+                                             inferM_, inferW_, interpret,
+                                             parse_, pretty)
 
 newtype SLangTest a = SLangTest
   { runSLangTest :: IO a
@@ -37,27 +40,42 @@ instance SLangParser SLangTest where
   parse = parse_
 
 instance SLangTypeInfer SLangTest where
-  infer = infer_
+  inferM = inferM_
+  inferW = inferW_
 
 main :: IO ()
 main = do
   paths <- listTestFiles
-  goldens <- mapM mkGoldenTest paths
-  defaultMain (testGroup "Tests" goldens)
+  w <- mapM algorithmWTest paths
+  m <- mapM algorithmMTest paths
+  defaultMain
+    ( testGroup "SLang Tests"
+       [ testGroup "with AlgorithmM" w
+       , testGroup "with AlgorithmW" m
+       ]
+    )
 
 listTestFiles :: IO [FilePath]
 listTestFiles = do
   findByExtension [".sl"] "test/Goldens"
 
-mkGoldenTest :: FilePath -> IO TestTree
-mkGoldenTest path = do
+type GoldenFileName = String
+
+algorithmWTest :: FilePath -> IO TestTree
+algorithmWTest = mkGoldenTests (interpret W) ".w.golden"
+
+algorithmMTest :: FilePath -> IO TestTree
+algorithmMTest = mkGoldenTests (interpret M) ".golden"
+
+mkGoldenTests :: (Pretty a) => (FilePath -> Text -> SLangTest a) -> GoldenFileName -> FilePath -> IO TestTree
+mkGoldenTests interpreter golden path = do
   let testName = takeBaseName path
-  let goldenPath = replaceExtension path ".golden"
+      goldenPath = replaceExtension path golden
   return (goldenVsString testName goldenPath $ action <&> BS.pack . fromString)
   where
     action = catches (do
       script <- TIO.readFile path
-      res <- runSLangTest $ interpret path script
+      res <- runSLangTest $ interpreter path script
       return $ show $ pretty res
       )
       [ Handler $ \case

@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE TypeFamilies               #-}
 
 module SLang
@@ -13,7 +14,8 @@ module SLang
 
   , main
   , evaluate_
-  , infer_
+  , inferM_
+  , inferW_
   , parse_
 
   , SLangError (..)
@@ -27,14 +29,16 @@ import           Control.Monad.IO.Class (MonadIO (liftIO))
 import qualified Data.Text              as T
 import qualified Data.Text.IO           as TIO
 
+import qualified Data.Kind              as K
 import           SLang.Eval             (EvalError, Expr, SLangEval (..), Value,
                                          runSLangEval)
 import           SLang.Interative
 import           SLang.Parser           (ParseError, SLangParser (..),
                                          runSLangParser)
 import           SLang.Pretty
-import           SLang.TypeInfer        (SLangTypeInfer (..), Type, TypeError,
-                                         runSLangTypeInfer)
+import           SLang.TypeInfer        (InferState, SLangTypeInfer (..), Type,
+                                         TypeError, runSLangTIwithM,
+                                         runSLangTIwithW)
 import           System.Console.Repline (HaskelineT)
 import           System.Exit            (ExitCode (ExitFailure, ExitSuccess))
 import qualified System.IO              as IO
@@ -69,10 +73,10 @@ slang :: (Interative m, SLangParser m, SLangEval m, SLangTypeInfer m) => m ()
 slang = do
   options <- liftIO optParse
   case options of
-    InterpretOpt i o -> cli interpret i o
-    ParseOpt i o     -> cli parsing i o
-    TypeOfOpt i o    -> cli typeinfer i o
-    REPLOpt          -> repl
+    InterpretOpt algorithm i o -> cli (interpret algorithm) i o
+    ParseOpt i o               -> cli parsing i o
+    TypeOfOpt algorithm i o    -> cli (typeinfer algorithm) i o
+    REPLOpt                    -> repl
 
 handlers :: [Handler IO ()]
 handlers =
@@ -99,7 +103,8 @@ instance SLangParser SLangApp where
   parse = parse_
 
 instance SLangTypeInfer SLangApp where
-  infer = infer_
+  inferM = inferM_
+  inferW = inferW_
 
 instance SLangEval (HaskelineT SLangApp) where
   evaluate = evaluate_
@@ -108,7 +113,8 @@ instance SLangParser (HaskelineT SLangApp) where
   parse = parse_
 
 instance SLangTypeInfer (HaskelineT SLangApp) where
-  infer = infer_
+  inferM = inferM_
+  inferW = inferW_
 
 evaluate_ :: (MonadThrow m) => Expr -> m Value
 evaluate_ expr = do
@@ -117,9 +123,23 @@ evaluate_ expr = do
     Left err -> throwM $ EvaluatorError err
     Right v  -> return v
 
-infer_ :: (MonadThrow m) => Expr -> m Type
-infer_ expr = do
-  eitherResult <- runSLangTypeInfer expr
+inferW_ :: (MonadThrow m) => Expr -> m Type
+inferW_ = infer_ runSLangTIwithW
+
+inferM_ :: (MonadThrow m) => Expr -> m Type
+inferM_ = infer_ runSLangTIwithM
+
+infer_
+  :: (MonadThrow m)
+  => ( forall (n :: K.Type -> K.Type)
+     . Monad n
+     => Expr
+     -> n (Either TypeError (Type, InferState))
+     )
+  -> Expr
+  -> m Type
+infer_ ti expr = do
+  eitherResult <- ti expr
   case eitherResult of
     Left err       -> throwM $ TypeInferError err
     Right (typ, _) -> return typ
