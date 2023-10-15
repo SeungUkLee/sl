@@ -120,9 +120,8 @@ mAlgorithm expr expected = case expr of
 
     let typescheme = generalization tyenv' a'
         tyenv'' = TypeEnv.extend tyenv' (name, typescheme)
-        expected'' = apply s expected'
 
-    s' <- local (const tyenv'') (mAlgorithm ebody expected'')
+    s' <- local (const tyenv'') (mAlgorithm ebody expected')
 
     return $ s' @@ s
 
