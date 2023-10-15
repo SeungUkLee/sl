@@ -5,4 +5,5 @@ import           SLang.Eval.Syntax    (Expr)
 import           SLang.TypeInfer.Type (Type)
 
 class (Monad m) => SLangTypeInfer m where
-  infer :: Expr -> m Type
+  inferM :: Expr -> m Type
+  inferW :: Expr -> m Type

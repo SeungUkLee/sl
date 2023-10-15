@@ -14,7 +14,8 @@ import           Control.Monad.IO.Class        (MonadIO (..))
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as TIO
 import           SLang.Interative.Cli.OptParse (Input (..), Options (..),
-                                                Output (..), optParse)
+                                                Output (..), TIAlgorithm (..),
+                                                optParse)
 import qualified SLang.Pretty                  as SP
 import           System.Directory              (doesFileExist)
 import           System.Exit                   (exitFailure)
