@@ -46,7 +46,9 @@ library
       SLang.Pretty
       SLang.TypeInfer
       SLang.TypeInfer.Algorithm
+      SLang.TypeInfer.Algorithm.Common
       SLang.TypeInfer.Algorithm.M
+      SLang.TypeInfer.Algorithm.W
       SLang.TypeInfer.Class
       SLang.TypeInfer.Error
       SLang.TypeInfer.State
