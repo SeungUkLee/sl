@@ -24,30 +24,30 @@ import           Control.Monad.State          (MonadState, StateT (runStateT))
 import           SLang.Eval                   (Expr)
 
 
-import qualified Data.Kind                    as K
 import           SLang.TypeInfer.Algorithm    (mAlgorithm, newTyVar, wAlgorithm)
 import           SLang.TypeInfer.Class        (SLangTypeInfer (..))
 import           SLang.TypeInfer.Error        (TypeError)
 import qualified SLang.TypeInfer.State        as SState
 import           SLang.TypeInfer.State        (InferState)
-import           SLang.TypeInfer.Substitution (Substitutable (apply))
+import           SLang.TypeInfer.Substitution (Subst, Substitutable (apply))
 import           SLang.TypeInfer.Type         (Type)
 import           SLang.TypeInfer.TypeEnv      (TypeEnv, empty)
+import qualified Data.Kind as K
 
-runSLangTIwithM :: (Monad m) => Expr -> m (Either TypeError (Type, InferState))
-runSLangTIwithM = runSLangTI inferExprM
+runSLangTIwithM :: Monad m => Expr -> m (Either TypeError Type)
+runSLangTIwithM = runSLangTI inferM 
 
-runSLangTIwithW :: (Monad m) => Expr -> m (Either TypeError (Type, InferState))
-runSLangTIwithW = runSLangTI inferExprW
-
-inferExprM :: (MonadState InferState m, MonadError TypeError m, MonadReader TypeEnv m) => Expr -> m Type
-inferExprM expr = do
+runSLangTIwithW :: Monad m => Expr -> m (Either TypeError Type)
+runSLangTIwithW = runSLangTI inferW 
+  
+inferM :: (MonadState InferState m, MonadError TypeError m, MonadReader TypeEnv m) => Expr -> m Type
+inferM expr = do
   a <- newTyVar
   subst <- mAlgorithm expr a
   return $ apply subst a
 
-inferExprW :: (MonadState InferState m, MonadError TypeError m, MonadReader TypeEnv m) => Expr -> m Type
-inferExprW expr = do
+inferW :: (MonadState InferState m, MonadError TypeError m, MonadReader TypeEnv m) => Expr -> m Type
+inferW expr = do
   (s, t) <- wAlgorithm expr
   return $ apply s t
 
@@ -59,5 +59,9 @@ runSLangTI
      -> n Type
      )
   -> Expr
-  -> m (Either TypeError (Type, InferState))
-runSLangTI inf expr = runExceptT $ runStateT (runReaderT (inf expr) empty) SState.empty
+  -> m (Either TypeError Type)
+runSLangTI ti expr = do 
+  ei <- runExceptT $ runStateT (runReaderT (ti expr) empty) SState.empty
+  case ei of
+    Left err -> return $ Left err
+    Right (t, _) -> return $ Right t

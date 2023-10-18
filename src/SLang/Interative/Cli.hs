@@ -3,66 +3,79 @@
 module SLang.Interative.Cli
   ( -- * re-exports
     module SLang.Interative.Cli.OptParse
+  , module SLang.Interative.Cli.Class
 
-  , executeCli
-  )
-where
+  , getStdinHandle
+  , getStdoutHandle
+  , getInputFileHandle
+  , getOutputFileHandle
+
+  , actionWithIOHandle
+  , withInputHandle
+  , withOutputHandle
+  , openFile
+  , hClose
+  , confirm
+  ) where
 
 import           Control.Monad.Catch           (MonadMask, bracket)
-import           Control.Monad.IO.Class        (MonadIO (..))
-
+import           Control.Monad.IO.Class        (MonadIO (liftIO))
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as TIO
-import           SLang.Interative.Cli.OptParse (Input (..), Options (..),
-                                                Output (..), TIAlgorithm (..),
-                                                optParse)
-import qualified SLang.Pretty                  as SP
+import           SLang.Interative.Cli.Class
+import           SLang.Interative.Cli.OptParse
 import           System.Directory              (doesFileExist)
 import           System.Exit                   (exitFailure)
 import qualified System.IO                     as IO
-import           System.IO                     (Handle,
-                                                IOMode (ReadMode, WriteMode))
+import           System.IO                     (Handle)
 
-executeCli :: (MonadMask m, MonadIO m, SP.Pretty a) => (FilePath -> T.Text -> m a) -> Input -> Output -> m ()
-executeCli cmd = actionWithIOHandle action
-  where
-    action file i o = do
-      code <- liftIO $ TIO.hGetContents i
-      res <- cmd file code
-      liftIO $ SP.renderIO o $ SP.pretty res
+getInputFileHandle :: (MonadMask m, MonadIO m) => T.Text -> m (InputHandle m)
+getInputFileHandle file = do
+  let filepath = T.unpack file
 
-actionWithIOHandle :: (MonadIO m, MonadMask m) => (FilePath -> Handle -> Handle -> m a) -> Input -> Output -> m a
-actionWithIOHandle action input output =
-  withInputHandle (\file -> flip withOutputHandle output . action file) input
+  return $ InputHandle (bracket (openFile filepath IO.ReadMode) hClose, filepath)
 
-withInputHandle :: (MonadMask m, MonadIO m) => (FilePath -> Handle -> m a) -> Input -> m a
-withInputHandle action input =
-  case input of
-    Stdin          -> action "(input)" IO.stdin
-    InputFile file -> bracket (openFile file ReadMode) hClose $ action file
+getStdinHandle :: (Monad m) => m (InputHandle m)
+getStdinHandle = do
+  return $ InputHandle (\act -> act IO.stdin, "(input)")
 
-openFile :: (MonadIO m) => FilePath -> IOMode -> m Handle
+getStdoutHandle :: (Monad m) => m (OutputHandle m)
+getStdoutHandle = do
+  return $ OutputHandle (\act -> act IO.stdout)
+
+getOutputFileHandle :: (MonadMask m, MonadIO m) => T.Text -> m (OutputHandle m)
+getOutputFileHandle filepath = do
+  let file = T.unpack filepath
+  exists <- liftIO $ doesFileExist file
+  shouldOpenFile <- if exists then confirm else return True
+  if shouldOpenFile
+    then return $ OutputHandle (bracket (openFile file IO.WriteMode) hClose)
+    else liftIO exitFailure
+
+actionWithIOHandle :: (Handle -> Handle -> m a) -> ((Handle -> m a) -> m a) -> ((Handle -> m a) -> m a) -> m a
+actionWithIOHandle action i o = withInputHandle i (withOutputHandle o . action)
+
+withInputHandle :: ((Handle -> m a) -> m a) -> (Handle -> m a) -> m a
+withInputHandle = id
+
+withOutputHandle
+  :: ((Handle -> m a) -> m a)
+  -> (Handle -> m a)
+  -- ^ action
+  -> m a
+withOutputHandle = id
+
+confirm :: (MonadIO m) => m Bool
+confirm = do
+  liftIO $ TIO.putStrLn "This file alredy exists. Do you want to overwrite it? (y/n)"
+  answer <- liftIO getLine
+  case answer of
+    "y" -> pure True
+    "n" -> pure False
+    _   -> liftIO $ TIO.putStrLn "Please use 'y' or 'n'" *> confirm
+
+openFile :: (MonadIO m) => FilePath -> IO.IOMode -> m Handle
 openFile file mode = liftIO $ IO.openFile file mode
 
 hClose :: (MonadIO m) => Handle -> m ()
 hClose h = liftIO $ IO.hClose h
-
-withOutputHandle :: (MonadIO m, MonadMask m) => (Handle -> m a) -> Output -> m a
-withOutputHandle action output =
-  case output of
-    Stdout -> action IO.stdout
-    OutputFile file -> do
-      exists <- liftIO $ doesFileExist file
-      shouldOpenFile <- if exists then liftIO confirm else pure True
-      if shouldOpenFile
-        then bracket (openFile file WriteMode) hClose action
-        else liftIO exitFailure
-
-confirm :: IO Bool
-confirm = do
-  TIO.putStrLn "This file alredy exists. Do you want to overwrite it? (y/n)"
-  answer <- getLine
-  case answer of
-    "y" -> pure True
-    "n" -> pure False
-    _   -> TIO.putStrLn "Please use 'y' or 'n'" *> confirm

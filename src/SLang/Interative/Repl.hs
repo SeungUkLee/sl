@@ -4,32 +4,35 @@
 {-# LANGUAGE RecordWildCards   #-}
 
 module SLang.Interative.Repl
-  ( loop
+  ( -- * re-exports
+    module SLang.Interative.Repl.Class
+
+  , loop
   ) where
 
-import           Control.Monad.Catch           (Exception (displayException),
-                                                MonadCatch (catch), MonadMask,
-                                                SomeException (SomeException))
-import           Control.Monad.IO.Class        (MonadIO (liftIO))
-import qualified Data.Text                     as T
-import           SLang.Eval.Class              (SLangEval)
-import qualified SLang.Interative.Command      as Cmd
-import           SLang.Parser.Class            (SLangParser)
-import           SLang.Parser.Lexer            (reservedWords)
-import qualified SLang.Pretty                  as SP
-import           SLang.TypeInfer.Class         (SLangTypeInfer)
-import           System.Console.Repline        (CompleterStyle (Prefix),
-                                                ExitDecision (Exit), HaskelineT,
-                                                MultiLine (..), ReplOpts (..),
-                                                evalReplOpts, fileCompleter,
-                                                listCompleter, wordCompleter)
-import qualified System.IO                     as IO
+import           Control.Monad.Catch         (Exception (displayException),
+                                              MonadCatch (catch), MonadMask,
+                                              SomeException (SomeException))
+import           Control.Monad.IO.Class      (MonadIO (liftIO))
+import qualified Data.Text                   as T
+import           SLang.Eval.Class            (SLangEval)
+import qualified SLang.Interative.Command    as Cmd
+import           SLang.Interative.Repl.Class
+import           SLang.Parser.Class          (SLangParser)
+import           SLang.Parser.Lexer          (reservedWords)
+import qualified SLang.Pretty                as SP
+import           SLang.TypeInfer.Class       (SLangTypeInfer (algorithmM))
+import           System.Console.Repline      (CompleterStyle (Prefix),
+                                              ExitDecision (Exit), HaskelineT,
+                                              MultiLine (..), ReplOpts (..),
+                                              evalReplOpts, fileCompleter,
+                                              listCompleter, wordCompleter)
+import qualified System.IO                   as IO
 
-import           Data.List                     (isPrefixOf)
-import qualified Data.Text.IO                  as TIO
-import           SLang.Interative.Cli.OptParse (TIAlgorithm (..))
-import           SLang.Interative.Command      (executeCmd)
-import           System.Exit                   (exitSuccess)
+import           Data.List                   (isPrefixOf)
+import qualified Data.Text.IO                as TIO
+import           SLang.Interative.Command    (executeCmd)
+import           System.Exit                 (exitSuccess)
 
 loop
   :: ( MonadMask m
@@ -43,7 +46,7 @@ loop = do
   let banner SingleLine = return "sl> "
       banner MultiLine  = return "| "
 
-  let command = dontCrash . execute (Cmd.interpret M) "(input)"
+  let command = dontCrash . execute (Cmd.interpret algorithmM) "(input)"
 
   let help _ = SP.prettyprint IO.stdout helpMessage
 
@@ -51,7 +54,7 @@ loop = do
 
   let load = dontCrash . execute (const Cmd.interpretWithFile) ""
 
-  let typeof = dontCrash . execute (Cmd.typeinfer M) "(input)"
+  let typeof = dontCrash . execute (Cmd.typeinfer algorithmM) "(input)"
 
   let parse = dontCrash . execute Cmd.parsing "(input)"
 
