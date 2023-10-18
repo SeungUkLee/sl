@@ -28,11 +28,9 @@ import           Control.Monad.IO.Class (MonadIO (liftIO))
 import qualified Data.Text              as T
 import qualified Data.Text.IO           as TIO
 
-import           SLang.Eval             (EvalError, Expr, SLangEval (..), Value,
-                                         runSLangEval)
+import           SLang.Eval
 import           SLang.Interative
-import           SLang.Parser           (ParseError, SLangParser (..),
-                                         runSLangParser)
+import           SLang.Parser
 import qualified SLang.Pretty           as SP
 import           SLang.Pretty
 import           SLang.Program

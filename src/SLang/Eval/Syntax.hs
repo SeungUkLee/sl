@@ -19,26 +19,26 @@ data Expr
   | ELet LetBind Expr
   | EIf Expr Expr Expr
   | EOp Bop Expr Expr
-  deriving Show
+  deriving (Show, Eq)
 
 data LetBind
   = LBRec Name Name Expr
   | LBVal Name Expr
-  deriving Show
+  deriving (Show, Eq)
 
 type Name = T.Text
 
 data Const
   = CInt Integer
   | CBool Bool
-  deriving Show
+  deriving (Show, Eq)
 
 data Bop
   = Add
   | Sub
   | Mul
   | Equal
-  deriving Show
+  deriving (Show, Eq)
 
 instance Pretty Expr where
   pretty = pprExpr

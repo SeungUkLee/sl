@@ -25,16 +25,16 @@ data Value
   = VInt Integer
   | VBool Bool
   | VClosure Closure
-  deriving Show
+  deriving (Show, Eq)
 
 type Closure = (FuncExpr, TermEnv)
 data FuncExpr
   = RecFun (Name, Name, Expr)
   | Fun (Name, Expr)
-  deriving Show
+  deriving (Show, Eq)
 
 newtype TermEnv = TermEnv (Map.Map Name Value)
-  deriving Show
+  deriving (Show, Eq)
 
 lookup
   :: (MonadReader TermEnv m, MonadError EvalError m)

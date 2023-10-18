@@ -10,7 +10,7 @@ import           Text.Megaparsec.Error (ParseErrorBundle, errorBundlePretty)
 
 newtype ParseError
   =  ParseError (ParseErrorBundle Text Void)
-  deriving Show
+  deriving (Show, Eq)
 
 instance Exception ParseError where
   displayException (ParseError e) = errorBundlePretty e

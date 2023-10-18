@@ -17,6 +17,7 @@ data Result
   | Parse Expr
   | TypeInfer Expr Type
   | Load Type Value
+  deriving (Show, Eq)
 
 instance Pretty Result where
   pretty (Interpret typ val)  = "-" <+> ":" <+> SP.pretty typ <+> "=" <+> SP.pretty val <> "\n"
