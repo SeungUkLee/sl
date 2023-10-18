@@ -83,8 +83,6 @@ tests:
     - tasty
     - tasty-hspec
     - hspec
-    - filepath
-    - bytestring
   parser-test:
     main:                 Test.hs
     source-dirs:          test/parser
@@ -96,5 +94,4 @@ tests:
     - slang
     - tasty
     - tasty-hspec
-    - tasty-hunit
     - hspec
