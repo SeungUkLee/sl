@@ -98,6 +98,34 @@ executable slang-exe
     , text
   default-language: Haskell2010
 
+test-suite eval-test
+  type: exitcode-stdio-1.0
+  main-is: Test.hs
+  other-modules:
+      Interpreter
+      Program
+      Paths_slang
+  hs-source-dirs:
+      test/eval
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , directory
+    , exceptions
+    , hspec
+    , megaparsec
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , prettyprinter
+    , repline
+    , slang
+    , tasty
+    , tasty-hspec
+    , text
+  default-language: Haskell2010
+
 test-suite golden-test
   type: exitcode-stdio-1.0
   main-is: Test.hs

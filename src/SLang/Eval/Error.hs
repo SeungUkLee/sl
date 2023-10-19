@@ -10,7 +10,7 @@ import qualified Data.Text         as T
 data EvalError
   = TypeMissmatch T.Text
   | UnboundVariable T.Text
-  deriving Show
+  deriving (Show, Eq)
 
 instance Exception EvalError where
   displayException = T.unpack . displayEvalError

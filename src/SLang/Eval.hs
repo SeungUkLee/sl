@@ -6,6 +6,7 @@ module SLang.Eval
     module SLang.Eval.Domain
   , module SLang.Eval.Error
   , module SLang.Eval.Syntax
+  , module SLang.Eval.Class
 
   , runSLangEval
 

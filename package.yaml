@@ -107,3 +107,15 @@ tests:
     - tasty
     - tasty-hspec
     - hspec
+  eval-test:
+    main:                 Test.hs
+    source-dirs:          test/eval
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - slang
+    - tasty
+    - tasty-hspec
+    - hspec
