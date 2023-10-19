@@ -35,8 +35,9 @@ import qualified SLang.Pretty           as SP
 import           SLang.Pretty
 import           SLang.Program
 import           SLang.TypeInfer        (InferState, SLangTypeInfer (..),
-                                         Substitutable (apply), Type, TypeError,
-                                         mAlgorithm, newTyVar, runSLangTIwithM,
+                                         Substitutable (apply), TVar (..),
+                                         Type (..), TypeError, mAlgorithm,
+                                         newTyVar, runSLangTIwithM,
                                          runSLangTIwithW, wAlgorithm)
 import           System.Console.Repline (HaskelineT)
 import           System.Exit            (ExitCode (ExitFailure, ExitSuccess))

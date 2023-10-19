@@ -30,7 +30,7 @@ import           SLang.TypeInfer.Error        (TypeError)
 import qualified SLang.TypeInfer.State        as SState
 import           SLang.TypeInfer.State        (InferState)
 import           SLang.TypeInfer.Substitution (Subst, Substitutable (apply))
-import           SLang.TypeInfer.Type         (Type)
+import           SLang.TypeInfer.Type         (Type (..), TVar (..))
 import           SLang.TypeInfer.TypeEnv      (TypeEnv, empty)
 import qualified Data.Kind as K
 

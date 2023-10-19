@@ -95,3 +95,15 @@ tests:
     - tasty
     - tasty-hspec
     - hspec
+  typeinfer-test:
+    main:                 Test.hs
+    source-dirs:          test/typeinfer
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - slang
+    - tasty
+    - tasty-hspec
+    - hspec
