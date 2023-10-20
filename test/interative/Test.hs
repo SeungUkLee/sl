@@ -22,3 +22,13 @@ spec = do
 
     it "interpret test" $ do
       mapM runCli interpretCliTestPgms `shouldNotReturn` []
+
+  describe "CLI Error Test" $ do
+    it "file does not exist" $ do
+      mapM runCli errorCliTestPgms `shouldThrow` anyIOException
+    it "parsing error" $ do
+      mapM runCli errorParsingCliTestPgms `shouldThrow` anyException
+    it "typeinfer error" $ do
+      mapM runCli errorTypeInferCliTestPgms `shouldThrow` anyException
+    it "interpret error" $ do
+      mapM runCli errorInterpretCliTestPgms `shouldThrow` anyException

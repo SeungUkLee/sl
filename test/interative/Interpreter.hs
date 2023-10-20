@@ -19,7 +19,14 @@ import qualified System.IO              as IO hiding (hClose, openFile)
 
 newtype TestCli a = TestCli
   { runCli :: IO a
-  } deriving ( MonadIO, Monad, Applicative, Functor, MonadMask, MonadCatch, MonadThrow )
+  } deriving ( MonadIO
+             , Monad
+             , Applicative
+             , Functor
+             , MonadMask
+             , MonadCatch
+             , MonadThrow
+             )
 
 instance SLangCli TestCli where
   cli cmd input output = do

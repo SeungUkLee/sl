@@ -1,7 +1,11 @@
-module Program 
+module Program
   ( interpretCliTestPgms
   , typeInferCliTestPgms
   , parsingCliTestPgms
+  , errorCliTestPgms
+  , errorInterpretCliTestPgms
+  , errorParsingCliTestPgms
+  , errorTypeInferCliTestPgms
   ) where
 
 import           Interpreter
@@ -38,6 +42,44 @@ typeInferCliTestPgms =
   , mkTypeInferCliPgm W testTIInputFile Stdout
   , mkTypeInferCliPgm W testTIInputFile testTIOutputFile
   ]
+
+errorCliTestPgms :: [TestCli()]
+errorCliTestPgms =
+  [ mkParsingCliPgm noExistFile Stdout
+  , mkInterpretCliPgm M noExistFile Stdout
+  , mkInterpretCliPgm W noExistFile Stdout
+  , mkTypeInferCliPgm M noExistFile Stdout
+  , mkTypeInferCliPgm W noExistFile Stdout
+  ]
+
+errorParsingCliTestPgms :: [TestCli()]
+errorParsingCliTestPgms =
+  [ mkParsingCliPgm errorTestParseInputFile Stdout
+  ]
+
+errorInterpretCliTestPgms :: [TestCli()]
+errorInterpretCliTestPgms =
+  [ mkInterpretCliPgm W errorTestInterpretInputFile Stdout
+  , mkInterpretCliPgm M errorTestInterpretInputFile Stdout
+  ]
+
+errorTypeInferCliTestPgms :: [TestCli()]
+errorTypeInferCliTestPgms =
+  [ mkTypeInferCliPgm W errorTestTIInputFile Stdout
+  , mkTypeInferCliPgm M errorTestTIInputFile Stdout
+  ]
+
+noExistFile :: Input
+noExistFile = InputFile "test/interative/files/doesnotexist.sl"
+
+errorTestParseInputFile :: Input
+errorTestParseInputFile = InputFile "test/interative/files/error.parse.sl"
+
+errorTestTIInputFile :: Input
+errorTestTIInputFile = InputFile "test/interative/files/error.typeinfer.sl"
+
+errorTestInterpretInputFile :: Input
+errorTestInterpretInputFile = InputFile "test/interative/files/error.interpret.sl"
 
 testParseInputFile :: Input
 testParseInputFile = InputFile "test/interative/files/hello.parse.sl"
