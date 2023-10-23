@@ -3,7 +3,9 @@
 module SLang.Interative.Cli
   ( -- * re-exports
     module SLang.Interative.Cli.OptParse
-  , module SLang.Interative.Cli.Class
+    
+  , InputHandle (..)
+  , OutputHandle (..)
 
   , getStdinHandle
   , getStdoutHandle
@@ -22,7 +24,6 @@ import           Control.Monad.Catch           (MonadMask, bracket)
 import           Control.Monad.IO.Class        (MonadIO (liftIO))
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as TIO
-import           SLang.Interative.Cli.Class
 import           SLang.Interative.Cli.OptParse
 import           System.Directory              (doesFileExist)
 import           System.Exit                   (exitFailure)
@@ -79,3 +80,9 @@ openFile file mode = liftIO $ IO.openFile file mode
 
 hClose :: (MonadIO m) => Handle -> m ()
 hClose h = liftIO $ IO.hClose h
+
+newtype InputHandle m = InputHandle
+  { unInputHandle :: ((Handle -> m ()) -> m (), FilePath) }
+
+newtype OutputHandle m = OutputHandle
+  { unOutputHandle :: (Handle -> m ()) -> m () }

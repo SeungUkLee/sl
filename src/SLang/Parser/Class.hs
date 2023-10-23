@@ -5,5 +5,5 @@ module SLang.Parser.Class
 import qualified Data.Text         as T
 import           SLang.Eval.Syntax (Expr)
 
-class (Monad m) => SLangParser m where
+class SLangParser m where
   parse :: FilePath -> T.Text -> m Expr

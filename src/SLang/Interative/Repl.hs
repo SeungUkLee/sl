@@ -4,10 +4,7 @@
 {-# LANGUAGE RecordWildCards   #-}
 
 module SLang.Interative.Repl
-  ( -- * re-exports
-    module SLang.Interative.Repl.Class
-
-  , loop
+  ( loop
   ) where
 
 import           Control.Monad.Catch         (Exception (displayException),
@@ -16,8 +13,6 @@ import           Control.Monad.Catch         (Exception (displayException),
 import           Control.Monad.IO.Class      (MonadIO (liftIO))
 import qualified Data.Text                   as T
 import           SLang.Eval.Class            (SLangEval)
-import qualified SLang.Interative.Command    as Cmd
-import           SLang.Interative.Repl.Class
 import           SLang.Parser.Class          (SLangParser)
 import           SLang.Parser.Lexer          (reservedWords)
 import qualified SLang.Pretty                as SP
@@ -31,72 +26,72 @@ import qualified System.IO                   as IO
 
 import           Data.List                   (isPrefixOf)
 import qualified Data.Text.IO                as TIO
-import           SLang.Interative.Command    (executeCmd)
 import           System.Exit                 (exitSuccess)
 
-loop
-  :: ( MonadMask m
-     , MonadIO m
-     , SLangEval (HaskelineT m)
-     , SLangTypeInfer (HaskelineT m)
-     , SLangParser (HaskelineT m)
-     )
-  => m ()
-loop = do
-  let banner SingleLine = return "sl> "
-      banner MultiLine  = return "| "
+loop = undefined
+-- loop
+--   :: ( MonadMask m
+--      , MonadIO m
+--      , SLangEval (HaskelineT m)
+--      , SLangTypeInfer (HaskelineT m)
+--      , SLangParser (HaskelineT m)
+--      )
+--   => m ()
+-- loop = do
+--   let banner SingleLine = return "sl> "
+--       banner MultiLine  = return "| "
 
-  let command = dontCrash . execute (Cmd.interpret algorithmM) "(input)"
+--   let command = dontCrash . execute (Cmd.interpret algorithmM) "(input)"
 
-  let help _ = SP.prettyprint IO.stdout helpMessage
+--   let help _ = SP.prettyprint IO.stdout helpMessage
 
-  let quit _ = SP.prettyprint IO.stdout helpMessage >> liftIO exitSuccess
+--   let quit _ = SP.prettyprint IO.stdout helpMessage >> liftIO exitSuccess
 
-  let load = dontCrash . execute (const Cmd.interpretWithFile) ""
+--   let load = dontCrash . execute (const Cmd.interpretWithFile) ""
 
-  let typeof = dontCrash . execute (Cmd.typeinfer algorithmM) "(input)"
+--   let typeof = dontCrash . execute (Cmd.typeinfer algorithmM) "(input)"
 
-  let parse = dontCrash . execute Cmd.parsing "(input)"
+--   let parse = dontCrash . execute Cmd.parsing "(input)"
 
-  let options =
-        [ ("load", load)
-        , ("type", typeof)
-        , ("quit", quit)
-        , ("parse", parse)
-        , ("help", help)
-        ]
+--   let options =
+--         [ ("load", load)
+--         , ("type", typeof)
+--         , ("quit", quit)
+--         , ("parse", parse)
+--         , ("help", help)
+--         ]
 
-  let prefix = Just ':'
-  let multilineCommand = Just ":{"
+--   let prefix = Just ':'
+--   let multilineCommand = Just ":{"
 
-  let tabComplete = Prefix (wordCompleter byWord) defaultMatcher
-        where
-          reserved = fmap T.unpack reservedWords
+--   let tabComplete = Prefix (wordCompleter byWord) defaultMatcher
+--         where
+--           reserved = fmap T.unpack reservedWords
 
-          byWord n = do
-            return $ filter (isPrefixOf n) reserved
+--           byWord n = do
+--             return $ filter (isPrefixOf n) reserved
 
-          optionWords = fmap f_ options
-            where
-              f_ (optionWord, _) = ":" <> optionWord
+--           optionWords = fmap f_ options
+--             where
+--               f_ (optionWord, _) = ":" <> optionWord
 
-          defaultMatcher =
-            [ (":type", listCompleter reserved)
-            , (":load", fileCompleter)
-            , (":quit", listCompleter [])
-            , (":parse", listCompleter reserved)
-            , (":help", listCompleter [])
-            , (":", listCompleter optionWords)
-            ]
+--           defaultMatcher =
+--             [ (":type", listCompleter reserved)
+--             , (":load", fileCompleter)
+--             , (":quit", listCompleter [])
+--             , (":parse", listCompleter reserved)
+--             , (":help", listCompleter [])
+--             , (":", listCompleter optionWords)
+--             ]
 
-  let initialiser = SP.prettyprint IO.stdout introMessage
+--   let initialiser = SP.prettyprint IO.stdout introMessage
 
-  let finaliser = SP.prettyprint IO.stdout finalMessage >> return Exit
+--   let finaliser = SP.prettyprint IO.stdout finalMessage >> return Exit
 
-  evalReplOpts ReplOpts { .. }
+--   evalReplOpts ReplOpts { .. }
 
-execute :: (SP.Pretty a, MonadIO m) => (FilePath -> T.Text -> m a) -> FilePath -> String -> m ()
-execute cmd file code = executeCmd (cmd file) IO.stdout (T.pack code)
+-- execute :: (SP.Pretty a, MonadIO m) => (FilePath -> T.Text -> m a) -> FilePath -> String -> m ()
+-- execute cmd file code = executeCmd (cmd file) IO.stdout (T.pack code)
 
 dontCrash :: (MonadIO m, MonadCatch m) => m () -> m ()
 dontCrash m = catch m (\(SomeException e) ->

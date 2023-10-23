@@ -16,6 +16,7 @@ module SLang
   , parse_
   , algorithmM_
   , algorithmW_
+  , runMachine
 
   , SLangError (..)
   ) where
@@ -39,7 +40,6 @@ import           SLang.TypeInfer        (InferState, SLangTypeInfer (..),
                                          Type (..), TypeError, mAlgorithm,
                                          newTyVar, runSLangTIwithM,
                                          runSLangTIwithW, wAlgorithm)
-import           System.Console.Repline (HaskelineT)
 import           System.Exit            (ExitCode (ExitFailure, ExitSuccess))
 import qualified System.IO              as IO
 
@@ -69,7 +69,7 @@ instance Exception SLangError where
 main :: IO ()
 main = catches (runSLangApp slang) handlers
 
-slang :: (SLangCli m, SLangRepl m, SLangParser m, SLangEval m, SLangTypeInfer m) => m ()
+slang :: (FinalSLang m, MonadIO m) => m ()
 slang = do
   options <- liftIO optParse
   case options of
@@ -92,7 +92,8 @@ handlers =
   where
     printSLangException e = TIO.hPutStrLn IO.stderr $ T.pack $ displayException e
 
-instance SLangCli SLangApp where
+instance Interative SLangApp where
+  repl = undefined
   cli cmd input output = do
     ih <- input
     oh <- output
@@ -113,9 +114,22 @@ instance SLangCli SLangApp where
   stdout = getStdoutHandle
   outputFile = getOutputFileHandle
 
-instance SLangRepl SLangApp where
-  repl = loop
+instance Command SLangApp where
+  interpret algorithm file code = do
+    expr <- parse file code
+    typ  <- infer algorithm expr
+    val  <- evaluate expr
 
+    return (val, typ)
+
+  typeinfer algorithm file code = do
+    expr <- parse file code
+    typ  <- infer algorithm expr
+    return (expr, typ)
+
+  parsing = parse
+
+instance Algorithm SLangApp where
 instance SLangEval SLangApp where
   evaluate = evaluate_
 
@@ -123,20 +137,10 @@ instance SLangParser SLangApp where
   parse = parse_
 
 instance SLangTypeInfer SLangApp where
-  infer algorithm = algorithm
+  infer = id
   algorithmM = algorithmM_
   algorithmW = algorithmW_
 
-instance SLangEval (HaskelineT SLangApp) where
-  evaluate = evaluate_
-
-instance SLangParser (HaskelineT SLangApp) where
-  parse = parse_
-
-instance SLangTypeInfer (HaskelineT SLangApp) where
-  infer algorithm = algorithm
-  algorithmM = algorithmM_
-  algorithmW = algorithmW_
 
 evaluate_ :: (MonadThrow m) => Expr -> m Value
 evaluate_ expr = runMachine runSLangEval expr EvaluatorError

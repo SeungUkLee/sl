@@ -1,5 +1,12 @@
+{-# LANGUAGE ConstraintKinds #-}
+
 module SLang.Program
-  ( mkInterpretPgm
+  ( FinalSLang
+  , Command (..)
+  , Algorithm (..)
+  , Interative (..)
+
+  , mkInterpretPgm
   , mkTypeInferPgm
 
   , mkInterpretCliPgm
@@ -9,36 +16,61 @@ module SLang.Program
   )
 where
 
-import qualified Data.Text        as T
+import qualified Data.Text             as T
 import           SLang.Eval
-import           SLang.Interative
+import           SLang.Interative.Cli
 import           SLang.Parser
 import           SLang.Pretty
-import           SLang.TypeInfer
+import           SLang.TypeInfer       hiding (algorithmM, algorithmW)
+import           SLang.TypeInfer.Class (SLangTypeInfer (algorithmM, algorithmW))
+
+type FinalSLang m = (Interative m, Command m, Algorithm m)
+
+class Interative m where
+  cli :: (Pretty a) => (FilePath -> T.Text -> m a) -> m (InputHandle m) -> m (OutputHandle m) -> m ()
+  repl :: m ()
+
+  inputFile :: T.Text -> m (InputHandle m)
+  outputFile :: T.Text -> m (OutputHandle m)
+
+  stdin :: m (InputHandle m)
+  stdout :: m (OutputHandle m)
+
+class (SLangParser m, SLangTypeInfer m, SLangEval m) => Command m where
+  interpret :: (Expr -> m Type) -> (FilePath -> T.Text -> m (Value, Type))
+
+  typeinfer :: (Expr -> m Type) -> (FilePath -> T.Text -> m (Expr, Type))
+
+  parsing :: FilePath -> T.Text -> m Expr
+
+class (SLangTypeInfer m) => Algorithm m where
+  w, m :: Expr -> m Type
+  w = algorithmM
+  m = algorithmW
 
 
 {- | make SLang project program -}
 
-mkInterpretPgm :: (SLangParser m, SLangTypeInfer m, SLangEval m) => TIAlgorithm -> FilePath -> T.Text -> m Result
+mkInterpretPgm :: (Command m, Algorithm m) => TIAlgorithm -> FilePath -> T.Text -> m (Value, Type)
 mkInterpretPgm algorithm = case algorithm of
-  W -> interpret algorithmW
-  M -> interpret algorithmM
+  W -> interpret w
+  M -> interpret m
 
-mkTypeInferPgm :: (SLangParser m, SLangTypeInfer m) => TIAlgorithm -> FilePath -> T.Text -> m Result
+mkTypeInferPgm :: (Command m, Algorithm m) => TIAlgorithm -> FilePath -> T.Text -> m (Expr, Type)
 mkTypeInferPgm algorithm = case algorithm of
-  W -> typeinfer algorithmW
-  M -> typeinfer algorithmM
+  W -> typeinfer w
+  M -> typeinfer m
 
-mkInterpretCliPgm :: (SLangCli m, SLangParser m, SLangTypeInfer m, SLangEval m) => TIAlgorithm -> Input -> Output -> m ()
+mkInterpretCliPgm :: (Command m, Interative m, Algorithm m) => TIAlgorithm -> Input -> Output -> m ()
 mkInterpretCliPgm algorithm = mkCliPgm (mkInterpretPgm algorithm)
 
-mkTypeInferCliPgm :: (SLangCli m, SLangParser m, SLangTypeInfer m) => TIAlgorithm -> Input -> Output -> m ()
+mkTypeInferCliPgm :: (Command m, Interative m, Algorithm m) => TIAlgorithm -> Input -> Output -> m ()
 mkTypeInferCliPgm algorithm = mkCliPgm (mkTypeInferPgm algorithm)
 
-mkParsingCliPgm :: (SLangCli m, SLangParser m) => Input -> Output -> m ()
+mkParsingCliPgm :: (Command m, Interative m) => Input -> Output -> m ()
 mkParsingCliPgm = mkCliPgm parsing
 
-mkCliPgm :: (SLangCli m, Pretty a) => (FilePath -> T.Text -> m a) -> Input -> Output -> m ()
+mkCliPgm :: (Interative m, Pretty a) => (FilePath -> T.Text -> m a) -> Input -> Output -> m ()
 mkCliPgm cmd input output = case (input, output) of
   (Stdin, Stdout) -> cli cmd stdin stdout
   (Stdin, OutputFile file) -> cli cmd stdin (outputFile $ T.pack file)
