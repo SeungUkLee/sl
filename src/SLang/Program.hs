@@ -1,30 +1,40 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE KindSignatures  #-}
+{-# LANGUAGE RankNTypes      #-}
 
 module SLang.Program
-  ( FinalSLang
-  , Command (..)
+  ( Command (..)
   , Algorithm (..)
   , Interative (..)
 
   , mkInterpretPgm
   , mkTypeInferPgm
-
   , mkInterpretCliPgm
   , mkTypeInferCliPgm
   , mkParsingCliPgm
   , mkCliPgm
+
+  , interpret_
+  , typeinfer_
+  , evaluate_
+  , parsing_
+  , algorithmM_
+  , algorithmW_
   )
 where
 
-import qualified Data.Text             as T
+import           Control.Monad.Catch      (Exception, MonadThrow (throwM))
+import           Control.Monad.Except     (MonadError, runExceptT)
+import qualified Data.Kind                as K
+import qualified Data.Text                as T
+import qualified System.Console.Haskeline as H
+
+import           SLang.Error
 import           SLang.Eval
 import           SLang.Interative.Cli
 import           SLang.Parser
 import           SLang.Pretty
-import           SLang.TypeInfer       hiding (algorithmM, algorithmW)
-import           SLang.TypeInfer.Class (SLangTypeInfer (algorithmM, algorithmW))
-
-type FinalSLang m = (Interative m, Command m, Algorithm m)
+import           SLang.TypeInfer
 
 class Interative m where
   cli :: (Pretty a) => (FilePath -> T.Text -> m a) -> m (InputHandle m) -> m (OutputHandle m) -> m ()
@@ -36,30 +46,77 @@ class Interative m where
   stdin :: m (InputHandle m)
   stdout :: m (OutputHandle m)
 
-class (SLangParser m, SLangTypeInfer m, SLangEval m) => Command m where
+class Command m where
   interpret :: (Expr -> m Type) -> (FilePath -> T.Text -> m (Value, Type))
-
   typeinfer :: (Expr -> m Type) -> (FilePath -> T.Text -> m (Expr, Type))
+  parsing :: FilePath -> T.Text -> m T.Text
 
-  parsing :: FilePath -> T.Text -> m Expr
+class Algorithm m where
+  algorithmW, algorithmM :: Expr -> m Type
 
-class (SLangTypeInfer m) => Algorithm m where
-  w, m :: Expr -> m Type
-  w = algorithmM
-  m = algorithmW
+instance (MonadThrow m) => Command (H.InputT m) where
+  interpret = interpret_
+  parsing = parsing_
+  typeinfer = typeinfer_
 
+instance (MonadThrow m) => Algorithm (H.InputT m) where
+  algorithmW = algorithmW_
+  algorithmM = algorithmM_
+
+interpret_ :: (MonadThrow m) => (Expr -> m Type) -> FilePath -> T.Text -> m (Value, Type)
+interpret_ algorithm file code = do
+  (expr, typ) <- typeinfer_ algorithm file code
+  val  <- evaluate_ expr
+
+  return (val, typ)
+
+typeinfer_ :: (MonadThrow m) => (Expr -> m Type) -> FilePath -> T.Text -> m (Expr, Type)
+typeinfer_ algorithm file code = do
+  expr <- parse_ file code
+  typ  <- algorithm expr
+
+  return (expr, typ)
+
+parsing_ :: (MonadThrow m) => FilePath -> T.Text -> m T.Text
+parsing_ file code = do
+  expr <- parse_ file code
+  return $ T.pack $ show expr ++ "\n"
+
+evaluate_ :: (MonadThrow m) => Expr -> m Value
+evaluate_ expr = run evaluate expr EvaluatorError
+
+parse_ :: (MonadThrow m) => FilePath -> T.Text -> m Expr
+parse_ file txt = run (parse file) txt ParserError
+
+algorithmW_ :: (MonadThrow m) => Expr -> m Type
+algorithmW_ expr = run typeinferW expr TypeInferError
+
+algorithmM_ :: (MonadThrow m) => Expr -> m Type
+algorithmM_ expr = run typeinferM expr TypeInferError
+
+run
+  :: (MonadThrow m, Exception e)
+  => (forall (n :: K.Type -> K.Type) . (MonadError err n) => arg -> n res)
+  -> arg
+  -> (err -> e)
+  -> m res
+run target arg errConstructor = do
+  result <- runExceptT $ target arg
+  case result of
+    Left err  -> throwM $ errConstructor err
+    Right res -> return res
 
 {- | make SLang project program -}
 
 mkInterpretPgm :: (Command m, Algorithm m) => TIAlgorithm -> FilePath -> T.Text -> m (Value, Type)
 mkInterpretPgm algorithm = case algorithm of
-  W -> interpret w
-  M -> interpret m
+  W -> interpret algorithmW
+  M -> interpret algorithmM
 
 mkTypeInferPgm :: (Command m, Algorithm m) => TIAlgorithm -> FilePath -> T.Text -> m (Expr, Type)
 mkTypeInferPgm algorithm = case algorithm of
-  W -> typeinfer w
-  M -> typeinfer m
+  W -> typeinfer algorithmW
+  M -> typeinfer algorithmM
 
 mkInterpretCliPgm :: (Command m, Interative m, Algorithm m) => TIAlgorithm -> Input -> Output -> m ()
 mkInterpretCliPgm algorithm = mkCliPgm (mkInterpretPgm algorithm)

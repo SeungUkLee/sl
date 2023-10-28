@@ -3,37 +3,28 @@
 
 module SLang.Parser
   ( -- * re-exports
-    module SLang.Parser.Lexer
-  , module SLang.Parser.Error
-  , module SLang.Parser.Class
+    module SLang.Parser.Error
 
-  , runSLangParser
-
+  , parse
   ) where
 
-import           Text.Megaparsec                (MonadParsec (eof, try), choice,
-                                                 many, runParser, some, (<|>))
-
 import           Control.Monad.Combinators.Expr (makeExprParser)
-
-import           Control.Monad.Except           (MonadError (throwError),
-                                                 runExceptT)
+import           Control.Monad.Except           (MonadError (throwError))
 import qualified Data.Text                      as T
 import           SLang.Eval                     (Const (..), Expr (..),
                                                  LetBind (..))
-import           SLang.Parser.Class             (SLangParser (..))
 import           SLang.Parser.Common            (Parser)
-import           SLang.Parser.Error             (ParseError (..))
+import           SLang.Parser.Error
 import           SLang.Parser.Lexer             (identifier, operatorTable,
-                                                 parens, reserved,
-                                                 reservedWords, sc,
+                                                 parens, reserved, sc,
                                                  signedInteger, symbol)
+import           Text.Megaparsec                (MonadParsec (eof, try), choice,
+                                                 many, runParser, some, (<|>))
 
-runSLangParser :: (Monad m) => FilePath -> T.Text -> m (Either ParseError Expr)
-runSLangParser file txt = runExceptT $
-  case runParser (sc *> pExpr <* eof) file (T.strip txt) of
-    Left e     -> throwError $ ParseError e
-    Right expr -> return expr
+parse :: (MonadError ParseError m) => FilePath -> T.Text -> m Expr
+parse file txt = case runParser (sc *> pExpr <* eof) file (T.strip txt) of
+  Left e     -> throwError $ ParseError e
+  Right expr -> return expr
 
 pTerm :: Parser Expr
 pTerm = choice
@@ -86,7 +77,6 @@ pLetRec = do
     ("", args', _) -> ELet (LBVal fNname (foldr EAbs evalue args')) <$> pExpr
     (argName, args', evalue') -> ELet (LBRec fNname argName (foldr EAbs evalue' args')) <$> pExpr
   where
-    -- | TODO: rename ...
     pm :: [T.Text] -> Expr -> (T.Text, [T.Text], Expr)
     pm li e = case (li, e) of
       ([], EAbs name e') -> (name, [], e')

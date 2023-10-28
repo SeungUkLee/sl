@@ -26,21 +26,19 @@ source-repository head
 library
   exposed-modules:
       SLang
+      SLang.Error
       SLang.Eval
-      SLang.Eval.Class
       SLang.Eval.Domain
       SLang.Eval.Error
       SLang.Eval.Syntax
       SLang.Interative
       SLang.Interative.Cli
-      SLang.Interative.Cli.Class
       SLang.Interative.Cli.OptParse
-      SLang.Interative.Command
       SLang.Interative.Repl
       SLang.Interative.Repl.Class
-      SLang.Interative.Result
+      SLang.Interative.Repl.Error
+      SLang.Interative.Repl.Message
       SLang.Parser
-      SLang.Parser.Class
       SLang.Parser.Common
       SLang.Parser.Error
       SLang.Parser.Lexer
@@ -51,7 +49,6 @@ library
       SLang.TypeInfer.Algorithm.Common
       SLang.TypeInfer.Algorithm.M
       SLang.TypeInfer.Algorithm.W
-      SLang.TypeInfer.Class
       SLang.TypeInfer.Error
       SLang.TypeInfer.State
       SLang.TypeInfer.Substitution
@@ -67,12 +64,12 @@ library
     , containers
     , directory
     , exceptions
+    , haskeline
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , text
   default-language: Haskell2010
 
@@ -88,12 +85,12 @@ executable slang-exe
     , containers
     , directory
     , exceptions
+    , haskeline
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , slang
     , text
   default-language: Haskell2010
@@ -113,13 +110,13 @@ test-suite eval-test
     , containers
     , directory
     , exceptions
+    , haskeline
     , hspec
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , slang
     , tasty
     , tasty-hspec
@@ -144,12 +141,12 @@ test-suite golden-test
     , directory
     , exceptions
     , filepath
+    , haskeline
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , slang
     , tasty
     , tasty-golden
@@ -161,6 +158,8 @@ test-suite interative-test
   main-is: Test.hs
   other-modules:
       Interpreter
+      Interpreter.Cli
+      Interpreter.Repl
       Program
       Paths_slang
   hs-source-dirs:
@@ -171,13 +170,13 @@ test-suite interative-test
     , containers
     , directory
     , exceptions
+    , haskeline
     , hspec
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , slang
     , tasty
     , tasty-hspec
@@ -199,13 +198,13 @@ test-suite parser-test
     , containers
     , directory
     , exceptions
+    , haskeline
     , hspec
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , slang
     , tasty
     , tasty-hspec
@@ -227,13 +226,13 @@ test-suite typeinfer-test
     , containers
     , directory
     , exceptions
+    , haskeline
     , hspec
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , slang
     , tasty
     , tasty-hspec

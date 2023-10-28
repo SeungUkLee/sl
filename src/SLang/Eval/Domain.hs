@@ -62,7 +62,6 @@ instance Pretty Value where
   pretty = pprValue
 
 instance Pretty (Value, Type) where
-  -- pretty (val, typ) = SP.pretty val <+> SP.pretty ":" <+> SP.pretty typ
   pretty (val, typ)  = "-" <+> ":" <+> SP.pretty typ <+> "=" <+> SP.pretty val <> "\n"
 
 pprValue :: Value -> Doc ann

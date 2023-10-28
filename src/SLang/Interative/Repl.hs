@@ -1,127 +1,147 @@
-{-# LANGUAGE BlockArguments    #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
 module SLang.Interative.Repl
-  ( loop
-  ) where
+  ( -- * re-exports
+    module SLang.Interative.Repl.Class
+  , module SLang.Interative.Repl.Error
 
-import           Control.Monad.Catch         (Exception (displayException),
-                                              MonadCatch (catch), MonadMask,
-                                              SomeException (SomeException))
-import           Control.Monad.IO.Class      (MonadIO (liftIO))
-import qualified Data.Text                   as T
-import           SLang.Eval.Class            (SLangEval)
-import           SLang.Parser.Class          (SLangParser)
-import           SLang.Parser.Lexer          (reservedWords)
-import qualified SLang.Pretty                as SP
-import           SLang.TypeInfer.Class       (SLangTypeInfer (algorithmM))
-import           System.Console.Repline      (CompleterStyle (Prefix),
-                                              ExitDecision (Exit), HaskelineT,
-                                              MultiLine (..), ReplOpts (..),
-                                              evalReplOpts, fileCompleter,
-                                              listCompleter, wordCompleter)
-import qualified System.IO                   as IO
+  , ReplConfig (..)
 
-import           Data.List                   (isPrefixOf)
-import qualified Data.Text.IO                as TIO
-import           System.Exit                 (exitSuccess)
+  , runSLangRepl
+  , runSLangReplWithConfig
+  , defaultReplConfig
+  , executeReplCmd
+  )
+where
 
-loop = undefined
--- loop
---   :: ( MonadMask m
---      , MonadIO m
---      , SLangEval (HaskelineT m)
---      , SLangTypeInfer (HaskelineT m)
---      , SLangParser (HaskelineT m)
---      )
---   => m ()
--- loop = do
---   let banner SingleLine = return "sl> "
---       banner MultiLine  = return "| "
+import           Control.Monad                 ((>=>))
+import           Control.Monad.Catch           (Exception (displayException),
+                                                Handler (Handler),
+                                                MonadThrow (throwM),
+                                                SomeException (SomeException),
+                                                catches)
+import           Control.Monad.IO.Class        (MonadIO (liftIO))
+import qualified Data.Text                     as T
 
---   let command = dontCrash . execute (Cmd.interpret algorithmM) "(input)"
+import qualified Data.Text.IO                  as TIO
 
---   let help _ = SP.prettyprint IO.stdout helpMessage
+import           SLang.Interative.Repl.Class
+import           SLang.Interative.Repl.Error
+import           SLang.Interative.Repl.Message (finalMessage, helpMessage,
+                                                introMessage)
+import qualified SLang.Pretty                  as SP
+import           SLang.Program                 (Algorithm (..),
+                                                Command (interpret, parsing, typeinfer))
+import           System.Exit                   (ExitCode (..), exitSuccess)
 
---   let quit _ = SP.prettyprint IO.stdout helpMessage >> liftIO exitSuccess
+data ReplConfig m = ReplConfig
+  { banner        :: m String
+  , process       :: ReplProcessCommand m
+  , commands      :: ReplCommands m
+  , commandPrefix :: Maybe Char
+  , initialiser   :: m ()
+  , finaliser     :: m ()
+  }
 
---   let load = dontCrash . execute (const Cmd.interpretWithFile) ""
+type ReplProcessCommand m = T.Text -> m ()
+type ReplCommands m = [(T.Text, ReplCommand m)]
+type ReplCommand m = T.Text -> m ()
 
---   let typeof = dontCrash . execute (Cmd.typeinfer algorithmM) "(input)"
+runSLangReplWithConfig :: (SLangRepl m) => ReplConfig m -> m ()
+runSLangReplWithConfig config = do
+  let ReplConfig { .. } = config
+  initialiser >> replLoop banner process commands commandPrefix finaliser
 
---   let parse = dontCrash . execute Cmd.parsing "(input)"
+runSLangRepl :: (SLangRepl m, Algorithm m, Command m) => m ()
+runSLangRepl = runSLangReplWithConfig defaultReplConfig
 
---   let options =
---         [ ("load", load)
---         , ("type", typeof)
---         , ("quit", quit)
---         , ("parse", parse)
---         , ("help", help)
---         ]
+replLoop
+  :: ( SLangRepl m
+     )
+  =>  m String
+  -- ^ banner
+  -> ReplProcessCommand m
+  -- ^ process command
+  -> ReplCommands m
+  -- ^ commands
+  -> Maybe Char
+  -- ^ command prefix
+  -> m ()
+  -- ^ finaliser
+  -> m ()
+replLoop banner prCmd cmds cmdPrefix finalz = loop
+  where
+    loop = do
+      prefix <- banner
+      userInput <- getInputLine prefix
+      case userInput of
+        Nothing -> finalz
+        Just "" -> loop
+        Just s -> catches (do
+          (cmdTxt, arg_) <- pReplCmd cmdPrefix (T.strip $ T.pack s)
+          cmd <- if cmdTxt == "" then return prCmd else getReplCmd cmds cmdTxt
+          cmd arg_ >> loop)
 
---   let prefix = Just ':'
---   let multilineCommand = Just ":{"
+          [ Handler $ \case
+              ExitSuccess -> outputStrLn $ T.unpack finalMessage
+              ExitFailure  _ -> return ()
+          , Handler $ \(SomeException e) -> do
+              outputStrLn $ displayException e
+              loop
+          ]
 
---   let tabComplete = Prefix (wordCompleter byWord) defaultMatcher
---         where
---           reserved = fmap T.unpack reservedWords
+pReplCmd :: (MonadThrow m) => Maybe Char -> T.Text -> m (T.Text, T.Text)
+pReplCmd Nothing txt = return ("", txt)
+pReplCmd (Just prefix) txt
+  | prefix == T.head txt =
+    let excludedPrefix = T.tail txt in
+    if null $ T.unpack excludedPrefix then throwM $ EmptyCommand $ T.pack [prefix]
+    else
+      let wordsList = T.words excludedPrefix
+          cmdTxt = head wordsList
+          argTxt = T.unwords $ tail wordsList
+      in return (cmdTxt, argTxt)
+  | otherwise = return ("", txt)
 
---           byWord n = do
---             return $ filter (isPrefixOf n) reserved
+getReplCmd :: (MonadThrow m) => ReplCommands m -> T.Text -> m (T.Text -> m ())
+getReplCmd [] s = throwM $ NoSuchCommand s
+getReplCmd ((cmdName, cmd) : replCmds) s
+  | s `T.isPrefixOf` cmdName = return cmd
+  | otherwise = getReplCmd replCmds s
 
---           optionWords = fmap f_ options
---             where
---               f_ (optionWord, _) = ":" <> optionWord
+executeReplCmd :: (SLangRepl m, SP.Pretty b) => (a -> m b) -> a -> m ()
+executeReplCmd cmd = cmd >=> outputStrLn . show . SP.pretty
 
---           defaultMatcher =
---             [ (":type", listCompleter reserved)
---             , (":load", fileCompleter)
---             , (":quit", listCompleter [])
---             , (":parse", listCompleter reserved)
---             , (":help", listCompleter [])
---             , (":", listCompleter optionWords)
---             ]
+defaultReplConfig :: (SLangRepl m, Algorithm m, Command m) => ReplConfig m
+defaultReplConfig = ReplConfig
+  { banner = return "sl> "
+  , process = executeReplCmd (interpret algorithmM "(input)")
+  , commands = replCommands
+  , commandPrefix = Just ':'
+  , initialiser = outputStrLn $ T.unpack introMessage
+  , finaliser = outputStrLn $ T.unpack finalMessage
+  }
 
---   let initialiser = SP.prettyprint IO.stdout introMessage
-
---   let finaliser = SP.prettyprint IO.stdout finalMessage >> return Exit
-
---   evalReplOpts ReplOpts { .. }
-
--- execute :: (SP.Pretty a, MonadIO m) => (FilePath -> T.Text -> m a) -> FilePath -> String -> m ()
--- execute cmd file code = executeCmd (cmd file) IO.stdout (T.pack code)
-
-dontCrash :: (MonadIO m, MonadCatch m) => m () -> m ()
-dontCrash m = catch m (\(SomeException e) ->
-  liftIO $ TIO.hPutStrLn IO.stderr $ T.pack $ displayException e)
-
-introMessage :: T.Text
-introMessage = T.unlines
-  [ ""
-  , "   _____ _                         Welcome to SLang REPL!"
-  , "  / ____| |"
-  , " | (___ | |     __ _ _ __   __ _   Author:  Seunguk Lee"
-  , "  \\___ \\| |    / _` | '_ \\ / _` |  GitHub:  https://github.com/seunguklee/slang"
-  , "  ____) | |___| (_| | | | | (_| |  Issues:  https://github.com/seunguklee/issues"
-  , " |_____/|______\\__,_|_| |_|\\__, |  About:   ML dialect language with let-ploymorphic type system"
-  , "                            __/ |  License: MIT"
-  , "                           |___/"
-  , ""
-  , "Type ':help' for available commands"
+replCommands :: (SLangRepl m, Command m, Algorithm m) => ReplCommands m
+replCommands =
+  [ ("quit", quit)
+  , ("help", help)
+  , ("parse", executeReplCmd (parsing "(input)"))
+  , ("load", executeReplCmd interpretWithFile)
+  , ("type", executeReplCmd (typeinfer algorithmM "(input)"))
   ]
+  where
+    quit _ = do
+      liftIO exitSuccess
 
-helpMessage :: T.Text
-helpMessage = T.unlines
-  [ "Commands available from the REPL\n"
-  , "   :{\n ..lines.. <Ctrl-D>     multiline command"
-  , "   :help                       display this list of commands"
-  , "   :load <file>                load file and interpret"
-  , "   :parse <expr>               parse <expr> and show the AST of <expr>"
-  , "   :quit                       exit REPL"
-  , "   :type <expr>                show the type of <expr>"
-  ]
+    help _ = do
+      outputStrLn $ T.unpack helpMessage
 
-finalMessage :: T.Text
-finalMessage = "GoodBye!\n"
+    interpretWithFile file = do
+      let striped = T.unpack $ T.strip file
+
+      code <- liftIO $ TIO.readFile striped
+      interpret algorithmM striped code

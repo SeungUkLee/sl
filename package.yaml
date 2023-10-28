@@ -26,11 +26,11 @@ dependencies:
 - megaparsec
 - parser-combinators
 - mtl
-- repline
 - prettyprinter
 - optparse-applicative
 - directory
 - exceptions
+- haskeline
 
 ghc-options:
 - -Wall
