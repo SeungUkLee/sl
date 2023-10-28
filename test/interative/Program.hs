@@ -6,10 +6,21 @@ module Program
   , errorInterpretCliTestPgms
   , errorParsingCliTestPgms
   , errorTypeInferCliTestPgms
+
+  , replTestPgm
   ) where
 
+import           Control.Monad.State
 import           Interpreter
 import           SLang
+
+replTestPgm :: [String] -> TestRepl [String]
+replTestPgm ins = do
+  modify $ \console -> console { inputs = ins }
+  repl
+  TestReplState outs _ <- get
+
+  return outs
 
 interpretCliTestPgms :: [TestCli()]
 interpretCliTestPgms =
