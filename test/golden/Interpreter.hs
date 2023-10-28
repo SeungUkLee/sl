@@ -6,7 +6,7 @@ module Interpreter
 
 import           Control.Monad.Catch    (MonadThrow)
 import           Control.Monad.IO.Class (MonadIO)
-import           SLang
+import           SLang                  
 
 newtype SLangGoldenTest a = SLangTest
   { runSLangGoldenTest :: IO a
@@ -17,13 +17,11 @@ newtype SLangGoldenTest a = SLangTest
              , MonadThrow
              )
 
-instance SLangEval SLangGoldenTest where
-  evaluate = evaluate_
+instance Command SLangGoldenTest where
+  interpret = interpret_
+  parsing = parsing_
+  typeinfer = typeinfer_
 
-instance SLangParser SLangGoldenTest where
-  parse = parse_
-
-instance SLangTypeInfer SLangGoldenTest where
-  infer algorithm = algorithm
+instance Algorithm SLangGoldenTest where
   algorithmM = algorithmM_
   algorithmW = algorithmW_

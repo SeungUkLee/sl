@@ -1,40 +1,43 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Program
-
-where
+  ( tiWithMPgms
+  , tiWithWPgms
+  , tiWithMErrorPgms
+  , tiWithWErrorPgms
+  ) where
 
 import           Interpreter
 import           SLang
 
 tiWithMPgms :: [(TestTypeInfer Type, Type)]
 tiWithMPgms =
-  [ (infer algorithmM arithEx, TInt)
-  , (infer algorithmM identityEx, TFun (TVar  $ TV "c") (TVar $ TV "c"))
-  , (infer algorithmM letEx, TFun (TVar  $ TV "e") (TVar $ TV "e"))
-  , (infer algorithmM letrecEx, TInt)
-  , (infer algorithmM ski3Ex, TInt)
-  , (infer algorithmM ski2Ex, TFun (TFun TInt (TVar $ TV "ad")) (TVar $ TV "ad"))
+  [ (typeinferM arithEx, TInt)
+  , (typeinferM identityEx, TFun (TVar  $ TV "c") (TVar $ TV "c"))
+  , (typeinferM letEx, TFun (TVar  $ TV "e") (TVar $ TV "e"))
+  , (typeinferM letrecEx, TInt)
+  , (typeinferM ski3Ex, TInt)
+  , (typeinferM ski2Ex, TFun (TFun TInt (TVar $ TV "ad")) (TVar $ TV "ad"))
   ]
 
 tiWithWPgms :: [(TestTypeInfer Type, Type)]
 tiWithWPgms =
-  [ (infer algorithmW arithEx, TInt)
-  , (infer algorithmW identityEx, TFun (TVar  $ TV "a") (TVar $ TV "a"))
-  , (infer algorithmW letEx, TFun (TVar  $ TV "b") (TVar $ TV "b"))
-  , (infer algorithmW letrecEx, TInt)
-  , (infer algorithmW ski3Ex, TInt)
-  , (infer algorithmW ski2Ex, TFun (TFun TInt (TVar $ TV "u")) (TVar $ TV "u"))
+  [ (typeinferW arithEx, TInt)
+  , (typeinferW identityEx, TFun (TVar  $ TV "a") (TVar $ TV "a"))
+  , (typeinferW letEx, TFun (TVar  $ TV "b") (TVar $ TV "b"))
+  , (typeinferW letrecEx, TInt)
+  , (typeinferW ski3Ex, TInt)
+  , (typeinferW ski2Ex, TFun (TFun TInt (TVar $ TV "u")) (TVar $ TV "u"))
   ]
 
 tiWithWErrorPgms :: [TestTypeInfer Type]
 tiWithWErrorPgms =
-  [ infer algorithmW ifThenElseErrEx 
+  [ typeinferW ifThenElseErrEx
   ]
 
 tiWithMErrorPgms :: [TestTypeInfer Type]
 tiWithMErrorPgms =
-  [ infer algorithmM ifThenElseErrEx 
+  [ typeinferM ifThenElseErrEx
   ]
 
 arithEx, identityEx, letrecEx, ski2Ex, ski3Ex, letEx :: Expr
@@ -50,16 +53,16 @@ letEx = ELet (LBVal "f" (EAbs "x" (EVar "x"))) (EVar "f")
 
 -- | let rec fac n = if n == 0 then 1 else n * (fac (n - 1)) in fac 3
 letrecEx =
-  ELet 
-    (LBRec "fac" "n" 
-      (EIf 
-        (EOp Equal (EVar "n") (EConst (CInt 0))) 
-        (EConst (CInt 1)) 
-        (EOp Mul (EVar "n") (EApp (EVar "fac") (EOp Sub (EVar "n") (EConst (CInt 1))))))) 
+  ELet
+    (LBRec "fac" "n"
+      (EIf
+        (EOp Equal (EVar "n") (EConst (CInt 0)))
+        (EConst (CInt 1))
+        (EOp Mul (EVar "n") (EApp (EVar "fac") (EOp Sub (EVar "n") (EConst (CInt 1)))))))
     (EApp (EVar "fac") (EConst (CInt 3)))
 
 
-{- | SKI Combinator 
+{- | SKI Combinator
 let i = fun x -> x in
 let k = fun x -> fun y -> x in
 let s = fun x -> fun y -> fun z -> (x z)(y z) in
@@ -78,7 +81,7 @@ ski2Ex =
             (EApp (EApp (EVar "s") (EApp (EVar "k") (EVar "k"))) (EVar "i")))
           (EConst (CInt 1)))))
 
-{- | SKI Combinator 
+{- | SKI Combinator
 let i = fun x -> x in
 let k = fun x -> fun y -> x in
 let s = fun x -> fun y -> fun z -> (x z)(y z) in
@@ -98,7 +101,7 @@ ski3Ex =
               (EApp (EApp (EVar "s") (EApp (EVar "k") (EVar "k"))) (EVar "i")))
             (EConst (CInt 1)))
           (EAbs "x" (EOp Add (EVar "x") (EConst (CInt 1)))))))
-  
+
 ifThenElseErrEx :: Expr
 
 -- | it true then 1 else true

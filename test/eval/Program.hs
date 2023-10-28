@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Program where
+module Program 
+  ( evalPgms 
+  ) where
 
 import           Interpreter
 import           SLang

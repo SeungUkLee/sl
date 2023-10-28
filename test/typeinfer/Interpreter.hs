@@ -14,18 +14,3 @@ newtype TestTypeInfer a = TestTypeInfer
              , Functor
              , MonadError TypeError
              )
-
-instance SLangTypeInfer TestTypeInfer where
-  infer = id
-
-  algorithmM expr = do
-    eitherResult <- runSLangTIwithM expr
-    case eitherResult of
-      Left err  -> throwError err
-      Right typ -> return typ
-
-  algorithmW expr = do
-    eitherResult <- runSLangTIwithW expr
-    case eitherResult of
-      Left err  -> throwError err
-      Right typ -> return typ

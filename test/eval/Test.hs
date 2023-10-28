@@ -10,11 +10,10 @@ import           Program
 
 main :: IO ()
 main = do
-  tree <- testSpec "Interative Test" spec
+  tree <- testSpec "Eval Test" spec
   defaultMain tree
 
 spec :: Spec
 spec = do
-  describe "Eval Test" $ do
-    it "evaluation test" $ do
-      mapM (runExcept . runTestEval . fst) evalPgms `shouldBe` Right (map snd evalPgms)
+  it "evaluate test" $ do
+    mapM (runExcept . runTestEval . fst) evalPgms `shouldBe` Right (map snd evalPgms)

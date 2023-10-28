@@ -1,6 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Interpreter where
+module Interpreter 
+  ( TestEval (..)
+  ) where
 
 import           Control.Monad.Except
 import           SLang
@@ -12,10 +14,3 @@ newtype TestEval a = TestEval
              , Functor
              , MonadError EvalError
              )
-
-instance SLangEval TestEval where
-  evaluate expr = do
-    eitherResult <- runSLangEval expr
-    case eitherResult of
-      Left err  -> throwError err
-      Right val -> return val

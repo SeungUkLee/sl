@@ -14,10 +14,3 @@ newtype TestParser a = TestParser
              , Functor
              , MonadError ParseError
              )
-
-instance SLangParser TestParser where
-  parse file txt = do
-    eitherResult <- runSLangParser file txt
-    case eitherResult of
-      Left err   -> throwError err
-      Right expr -> return expr
