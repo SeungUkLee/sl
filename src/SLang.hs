@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE RankNTypes                 #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 module SLang
   ( -- * re-exports
@@ -11,37 +9,33 @@ module SLang
   , module SLang.Interative
   , module SLang.TypeInfer
   , module SLang.Pretty
+  , module SLang.Program
 
   , main
-  , evaluate_
-  , inferM_
-  , inferW_
-  , parse_
 
   , SLangError (..)
   ) where
 
-import           Control.Monad.Catch    (Exception (displayException),
-                                         Handler (Handler), MonadCatch,
-                                         MonadMask, MonadThrow (throwM),
-                                         SomeException (SomeException), catches)
-import           Control.Monad.IO.Class (MonadIO (liftIO))
-import qualified Data.Text              as T
-import qualified Data.Text.IO           as TIO
+import           Control.Monad.Catch      (Exception (displayException),
+                                           Handler (..), MonadCatch, MonadMask,
+                                           MonadThrow,
+                                           SomeException (SomeException),
+                                           catches)
+import qualified Data.Text                as T
+import qualified Data.Text.IO             as TIO
 
-import qualified Data.Kind              as K
-import           SLang.Eval             (EvalError, Expr, SLangEval (..), Value,
-                                         runSLangEval)
+import           Control.Monad.IO.Class   (MonadIO (..))
+import           SLang.Error
+import           SLang.Eval
 import           SLang.Interative
-import           SLang.Parser           (ParseError, SLangParser (..),
-                                         runSLangParser)
+import           SLang.Parser
+import qualified SLang.Pretty             as SP
 import           SLang.Pretty
-import           SLang.TypeInfer        (InferState, SLangTypeInfer (..), Type,
-                                         TypeError, runSLangTIwithM,
-                                         runSLangTIwithW)
-import           System.Console.Repline (HaskelineT)
-import           System.Exit            (ExitCode (ExitFailure, ExitSuccess))
-import qualified System.IO              as IO
+import           SLang.Program
+import           SLang.TypeInfer
+import qualified System.Console.Haskeline as H
+import           System.Exit              (ExitCode (ExitFailure, ExitSuccess))
+import qualified System.IO                as IO
 
 newtype SLangApp a = SLangApp
   { runSLangApp :: IO a
@@ -54,28 +48,17 @@ newtype SLangApp a = SLangApp
              , MonadThrow
              )
 
-data SLangError
-  = ParserError ParseError
-  | EvaluatorError EvalError
-  | TypeInferError TypeError
-  deriving Show
-
-instance Exception SLangError where
-  displayException (ParserError e)    = displayException e
-  displayException (EvaluatorError e) = displayException e
-  displayException (TypeInferError e) = displayException e
-
 -- | Command line entry points
 main :: IO ()
 main = catches (runSLangApp slang) handlers
 
-slang :: (Interative m, SLangParser m, SLangEval m, SLangTypeInfer m) => m ()
+slang :: (MonadIO m, Command m, Algorithm m, Interative m) => m ()
 slang = do
   options <- liftIO optParse
   case options of
-    InterpretOpt algorithm i o -> cli (interpret algorithm) i o
-    ParseOpt i o               -> cli parsing i o
-    TypeOfOpt algorithm i o    -> cli (typeinfer algorithm) i o
+    ParseOpt i o               -> mkParsingCliPgm i o
+    TypeOfOpt algorithm i o    -> mkTypeInferCliPgm algorithm i o
+    InterpretOpt algorithm i o -> mkInterpretCliPgm algorithm i o
     REPLOpt                    -> repl
 
 handlers :: [Handler IO ()]
@@ -87,66 +70,40 @@ handlers =
   , Handler $ \case
       ExitSuccess -> return ()
       ExitFailure  _ -> return ()
-  , Handler $ \(SomeException e) -> printSLangException e
+  , Handler $ \(SomeException e) -> do
+      printSLangException e
   ]
   where
-    printSLangException e = TIO.hPutStrLn IO.stderr $ T.pack $ displayException e
+    printSLangException e = SP.prettyprint IO.stderr $ T.pack $ displayException e
 
 instance Interative SLangApp where
-  cli = executeCli
-  repl = loop
+  repl = H.runInputT H.defaultSettings runSLangRepl
 
-instance SLangEval SLangApp where
-  evaluate = evaluate_
+  cli cmd input output = do
+    ih <- input
+    oh <- output
 
-instance SLangParser SLangApp where
-  parse = parse_
+    let (withIH, file) = unInputHandle ih
+    let withOH = unOutputHandle oh
 
-instance SLangTypeInfer SLangApp where
-  inferM = inferM_
-  inferW = inferW_
+    actionWithIOHandle (action file) withIH withOH
 
-instance SLangEval (HaskelineT SLangApp) where
-  evaluate = evaluate_
+    where
+      action file i o = do
+        code <- liftIO $ TIO.hGetContents i
+        res <- cmd file code
+        SP.prettyprint o res
 
-instance SLangParser (HaskelineT SLangApp) where
-  parse = parse_
+  stdin = getStdinHandle
+  inputFile = getInputFileHandle
+  stdout = getStdoutHandle
+  outputFile = getOutputFileHandle
 
-instance SLangTypeInfer (HaskelineT SLangApp) where
-  inferM = inferM_
-  inferW = inferW_
+instance Command SLangApp where
+  interpret = interpret_
+  typeinfer = typeinfer_
+  parsing = parsing_
 
-evaluate_ :: (MonadThrow m) => Expr -> m Value
-evaluate_ expr = do
-  eitherResult <- runSLangEval expr
-  case eitherResult of
-    Left err -> throwM $ EvaluatorError err
-    Right v  -> return v
-
-inferW_ :: (MonadThrow m) => Expr -> m Type
-inferW_ = infer_ runSLangTIwithW
-
-inferM_ :: (MonadThrow m) => Expr -> m Type
-inferM_ = infer_ runSLangTIwithM
-
-infer_
-  :: (MonadThrow m)
-  => ( forall (n :: K.Type -> K.Type)
-     . Monad n
-     => Expr
-     -> n (Either TypeError (Type, InferState))
-     )
-  -> Expr
-  -> m Type
-infer_ ti expr = do
-  eitherResult <- ti expr
-  case eitherResult of
-    Left err       -> throwM $ TypeInferError err
-    Right (typ, _) -> return typ
-
-parse_ :: (MonadThrow m) => FilePath -> T.Text -> m Expr
-parse_ file txt = do
-  eitherResult <- runSLangParser file txt
-  case eitherResult of
-    Left err   -> throwM $ ParserError err
-    Right expr -> return expr
+instance Algorithm SLangApp where
+  algorithmM = algorithmM_
+  algorithmW = algorithmW_

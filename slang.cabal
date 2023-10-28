@@ -26,30 +26,29 @@ source-repository head
 library
   exposed-modules:
       SLang
+      SLang.Error
       SLang.Eval
-      SLang.Eval.Class
       SLang.Eval.Domain
       SLang.Eval.Error
       SLang.Eval.Syntax
       SLang.Interative
-      SLang.Interative.Class
       SLang.Interative.Cli
       SLang.Interative.Cli.OptParse
-      SLang.Interative.Command
       SLang.Interative.Repl
-      SLang.Interative.Result
+      SLang.Interative.Repl.Class
+      SLang.Interative.Repl.Error
+      SLang.Interative.Repl.Message
       SLang.Parser
-      SLang.Parser.Class
       SLang.Parser.Common
       SLang.Parser.Error
       SLang.Parser.Lexer
       SLang.Pretty
+      SLang.Program
       SLang.TypeInfer
       SLang.TypeInfer.Algorithm
       SLang.TypeInfer.Algorithm.Common
       SLang.TypeInfer.Algorithm.M
       SLang.TypeInfer.Algorithm.W
-      SLang.TypeInfer.Class
       SLang.TypeInfer.Error
       SLang.TypeInfer.State
       SLang.TypeInfer.Substitution
@@ -65,12 +64,12 @@ library
     , containers
     , directory
     , exceptions
+    , haskeline
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , text
   default-language: Haskell2010
 
@@ -86,23 +85,54 @@ executable slang-exe
     , containers
     , directory
     , exceptions
+    , haskeline
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , slang
     , text
   default-language: Haskell2010
 
-test-suite slang-test
+test-suite eval-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Test.hs
   other-modules:
+      Interpreter
+      Program
       Paths_slang
   hs-source-dirs:
-      test
+      test/eval
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , directory
+    , exceptions
+    , haskeline
+    , hspec
+    , megaparsec
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , prettyprinter
+    , slang
+    , tasty
+    , tasty-hspec
+    , text
+  default-language: Haskell2010
+
+test-suite golden-test
+  type: exitcode-stdio-1.0
+  main-is: Test.hs
+  other-modules:
+      GoldenTests
+      Interpreter
+      Program
+      Paths_slang
+  hs-source-dirs:
+      test/golden
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
@@ -111,14 +141,100 @@ test-suite slang-test
     , directory
     , exceptions
     , filepath
+    , haskeline
     , megaparsec
     , mtl
     , optparse-applicative
     , parser-combinators
     , prettyprinter
-    , repline
     , slang
     , tasty
     , tasty-golden
+    , text
+  default-language: Haskell2010
+
+test-suite interative-test
+  type: exitcode-stdio-1.0
+  main-is: Test.hs
+  other-modules:
+      Interpreter
+      Interpreter.Cli
+      Interpreter.Repl
+      Program
+      Paths_slang
+  hs-source-dirs:
+      test/interative
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , directory
+    , exceptions
+    , haskeline
+    , hspec
+    , megaparsec
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , prettyprinter
+    , slang
+    , tasty
+    , tasty-hspec
+    , text
+  default-language: Haskell2010
+
+test-suite parser-test
+  type: exitcode-stdio-1.0
+  main-is: Test.hs
+  other-modules:
+      Interpreter
+      Program
+      Paths_slang
+  hs-source-dirs:
+      test/parser
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , directory
+    , exceptions
+    , haskeline
+    , hspec
+    , megaparsec
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , prettyprinter
+    , slang
+    , tasty
+    , tasty-hspec
+    , text
+  default-language: Haskell2010
+
+test-suite typeinfer-test
+  type: exitcode-stdio-1.0
+  main-is: Test.hs
+  other-modules:
+      Interpreter
+      Program
+      Paths_slang
+  hs-source-dirs:
+      test/typeinfer
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , directory
+    , exceptions
+    , haskeline
+    , hspec
+    , megaparsec
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , prettyprinter
+    , slang
+    , tasty
+    , tasty-hspec
     , text
   default-language: Haskell2010

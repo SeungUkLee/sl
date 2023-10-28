@@ -13,7 +13,7 @@ import           SLang.TypeInfer.Type (Type)
 data TypeError
   = UnificationError Type Type Expr
   | UnboundVar T.Text
-  deriving Show
+  deriving (Show, Eq)
 
 instance Exception TypeError where
   displayException = T.unpack . displayTypeError

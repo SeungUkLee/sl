@@ -26,11 +26,11 @@ dependencies:
 - megaparsec
 - parser-combinators
 - mtl
-- repline
 - prettyprinter
 - optparse-applicative
 - directory
 - exceptions
+- haskeline
 
 ghc-options:
 - -Wall
@@ -58,9 +58,9 @@ executables:
     - slang
 
 tests:
-  slang-test:
-    main:                Spec.hs
-    source-dirs:         test
+  golden-test:
+    main:                Test.hs
+    source-dirs:         test/golden
     ghc-options:
     - -threaded
     - -rtsopts
@@ -71,3 +71,51 @@ tests:
     - tasty-golden
     - filepath
     - bytestring
+  interative-test:
+    main:                 Test.hs
+    source-dirs:          test/interative
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - slang
+    - tasty
+    - tasty-hspec
+    - hspec
+  parser-test:
+    main:                 Test.hs
+    source-dirs:          test/parser
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - slang
+    - tasty
+    - tasty-hspec
+    - hspec
+  typeinfer-test:
+    main:                 Test.hs
+    source-dirs:          test/typeinfer
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - slang
+    - tasty
+    - tasty-hspec
+    - hspec
+  eval-test:
+    main:                 Test.hs
+    source-dirs:          test/eval
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - slang
+    - tasty
+    - tasty-hspec
+    - hspec

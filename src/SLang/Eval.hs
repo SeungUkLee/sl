@@ -7,25 +7,22 @@ module SLang.Eval
   , module SLang.Eval.Error
   , module SLang.Eval.Syntax
 
-  , runSLangEval
+  , evaluate
 
-  , SLangEval (..)
   ) where
 
-import           Control.Monad.Except (MonadError (throwError), runExceptT)
+import           Control.Monad.Except (MonadError (throwError))
 import           Control.Monad.Reader (MonadReader (ask, local),
                                        ReaderT (runReaderT))
 
-import           SLang.Eval.Class     (SLangEval (..))
 import qualified SLang.Eval.Domain    as TermEnv
 import           SLang.Eval.Domain    (Closure, FuncExpr (..), TermEnv,
-                                       Value (..), empty)
-import           SLang.Eval.Error     (EvalError (..))
-import           SLang.Eval.Syntax    (Bop (..), Const (..), Expr (..),
-                                       LetBind (..))
+                                       Value (..))
+import           SLang.Eval.Error
+import           SLang.Eval.Syntax
 
-runSLangEval :: Monad m => Expr -> m (Either EvalError Value)
-runSLangEval expr = runExceptT $ runReaderT (eval expr) empty
+evaluate :: (MonadError EvalError m) => Expr -> m Value
+evaluate expr = runReaderT (eval expr) TermEnv.empty
 
 eval :: (MonadReader TermEnv m, MonadError EvalError m) => Expr -> m Value
 eval (EConst (CInt n)) = return $ VInt n
